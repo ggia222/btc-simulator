@@ -43,109 +43,59 @@ document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 });
 
 let dataCache=[];
-let drawing=false;
-let futurePoints=[];
+/* ================= 미래봉 완전 안정판 ================= */
 
-const futureSeries=chart.addLineSeries({
-color:"#AAAAAA",
-lineWidth:2,
-priceLineVisible:false,
-lastValueVisible:false
+let drawing = false;
+let futurePoints = [];
+
+const futureSeries = chart.addLineSeries({
+  color: "#AAAAAA",
+  lineWidth: 2,
+  priceLineVisible: false,
+  lastValueVisible: false
 });
-
-/* MA 계산 */
-function calcMA(data,period){
-let result=[];
-let sum=0;
-for(let i=0;i<data.length;i++){
-sum+=data[i].close;
-if(i>=period) sum-=data[i-period].close;
-if(i>=period-1){
-result.push({time:data[i].time,value:sum/period});
-}
-}
-return result;
-}
-
-async function loadData(){
-const res=await fetch(
-`https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
-);
-const raw=await res.json();
-
-dataCache=raw.map(d=>({
-time:d[0]/1000,
-open:+d[1],
-high:+d[2],
-low:+d[3],
-close:+d[4],
-}));
-
-candleSeries.setData(dataCache);
-updateAllMA();
-chart.timeScale().fitContent();
-}
-
-function updateAllMA(){
-Object.keys(maSeries).forEach(p=>{
-if(maState[p]){
-maSeries[p].setData(calcMA(dataCache,Number(p)));
-}else{
-maSeries[p].setData([]);
-}
-});
-}
-
-function toggleMA(period){
-maState[period]=!maState[period];
-document.getElementById("ma"+period+"Btn").classList.toggle("active");
-updateAllMA();
-}
-
-function changeTF(tf){
-interval=tf;
-document.querySelectorAll("[id^='tf_']").forEach(b=>b.classList.remove("active"));
-document.getElementById("tf_"+tf).classList.add("active");
-loadData();
-}
 
 function toggleDraw(){
-drawing=!drawing;
+  drawing = !drawing;
 }
 
 function clearFuture(){
-futurePoints=[];
-futureSeries.setData([]);
-document.getElementById("futurePercent").innerText="";
+  futurePoints = [];
+  futureSeries.setData([]);
+  const el = document.getElementById("futurePercent");
+  if(el) el.innerText = "";
 }
 
-function handlePointer(param){
-if(!drawing) return;
-if(!param.point) return;
+/* 클릭으로만 생성 (가장 안정적 방식) */
+chart.subscribeClick(param => {
 
-const price=candleSeries.coordinateToPrice(param.point.y);
-const time=chart.timeScale().coordinateToTime(param.point.x);
-if(!price||!time) return;
+  if(!drawing) return;
+  if(!param.time) return;
+  if(!param.seriesPrices) return;
 
-futurePoints.push({time,value:price});
-futureSeries.setData(futurePoints);
-updateFuturePercent(price);
-}
+  const price = param.seriesPrices.get(candleSeries);
+  if(price === undefined) return;
 
-chart.subscribeClick(handlePointer);
+  futurePoints.push({
+    time: param.time,
+    value: price
+  });
 
-chart.subscribeCrosshairMove(param=>{
-if(drawing && param.point){
-handlePointer(param);
-}
+  futureSeries.setData(futurePoints);
+  updateFuturePercent(price);
 });
 
 function updateFuturePercent(price){
-const lastClose=dataCache[dataCache.length-1].close;
-const diff=((price-lastClose)/lastClose)*100;
-const el=document.getElementById("futurePercent");
-el.innerText=diff.toFixed(2)+"%";
-el.style.color=diff>=0?"#0ECB81":"#F6465D";
+  if(!dataCache.length) return;
+
+  const lastClose = dataCache[dataCache.length-1].close;
+  const diff = ((price-lastClose)/lastClose)*100;
+
+  const el = document.getElementById("futurePercent");
+  if(!el) return;
+
+  el.innerText = diff.toFixed(2) + "%";
+  el.style.color = diff>=0 ? "#0ECB81" : "#F6465D";
 }
 
 function changeSymbol(symbol){
@@ -154,3 +104,4 @@ loadData();
 }
 
 loadData();
+
