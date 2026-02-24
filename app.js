@@ -45,13 +45,49 @@ document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 let dataCache=[];
 let drawing=false;
 let futurePoints=[];
+let futureIndex=1;
 
-const futureSeries=chart.addLineSeries({
-color:"#AAAAAA",
-lineWidth:2,
-priceLineVisible:false,
-lastValueVisible:false
+function toggleDraw(){
+  drawing=!drawing;
+  console.log("미래봉:", drawing);
+}
+
+function clearFuture(){
+  futurePoints=[];
+  futureSeries.setData([]);
+  futureIndex=1;
+}
+
+chart.subscribeClick(param=>{
+  if(!drawing) return;
+  if(!dataCache.length) return;
+
+  const lastBar=dataCache[dataCache.length-1];
+
+  const price=param.seriesPrices.get(candleSeries);
+  if(price===undefined) return;
+
+  // 🔥 미래 시간 생성
+  const intervalSec=getIntervalSeconds(interval);
+  const newTime=lastBar.time+(intervalSec*futureIndex);
+
+  futurePoints.push({
+    time:newTime,
+    value:price
+  });
+
+  futureSeries.setData(futurePoints);
+  futureIndex++;
+
+  updateFuturePercent(price);
 });
+
+function getIntervalSeconds(tf){
+  if(tf.endsWith("m")) return parseInt(tf)*60;
+  if(tf.endsWith("h")) return parseInt(tf)*3600;
+  if(tf.endsWith("d")) return parseInt(tf)*86400;
+  return 60;
+}
 
 /* MA 계산 */
 function calcMA(data,period){
@@ -154,3 +190,4 @@ loadData();
 }
 
 loadData();
+
