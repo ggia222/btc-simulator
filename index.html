@@ -2,44 +2,98 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Trading Chart</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Binance Futures Chart</title>
+
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
 body {
   margin: 0;
   background: #0B0E11;
-  color: white;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #EAECEF;
 }
 
+/* 상단 영역 */
+.header {
+  padding: 10px 16px;
+  border-bottom: 1px solid #1E2329;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left-header {
+  display: flex;
+  flex-direction: column;
+}
+
+.symbol-select {
+  background: #1E2329;
+  color: #EAECEF;
+  border: 1px solid #2B3139;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.change {
+  font-size: 14px;
+}
+
+/* 타임프레임 */
+.timeframes {
+  display: flex;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1E2329;
+  font-size: 14px;
+}
+
+.tf-btn {
+  color: #848E9C;
+  cursor: pointer;
+}
+
+.tf-btn.active {
+  color: #FCD535;
+  font-weight: 600;
+}
+
+/* MA 버튼 */
 .controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px;
-  background: #0B0E11;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1E2329;
+  overflow-x: auto;
 }
 
 .binance-btn {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
   border: 1px solid #2B3139;
   background: #1E2329;
   color: #848E9C;
   font-size: 13px;
   cursor: pointer;
+  white-space: nowrap;
   transition: 0.2s;
 }
 
 .binance-btn.active {
-  color: #000;
   font-weight: 600;
+  color: #000;
 }
 
 #chart {
-  width: 100%;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 210px);
   padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
@@ -47,22 +101,43 @@ body {
 
 <body>
 
+<div class="header">
+  <div class="left-header">
+    <select class="symbol-select" onchange="changeSymbol(this.value)">
+      <option value="BTCUSDT">BTCUSDT</option>
+      <option value="ETHUSDT">ETHUSDT</option>
+      <option value="SOLUSDT">SOLUSDT</option>
+      <option value="XRPUSDT">XRPUSDT</option>
+      <option value="DOGEUSDT">DOGEUSDT</option>
+      <option value="BNBUSDT">BNBUSDT</option>
+    </select>
+    <div class="price" id="price">-</div>
+    <div class="change" id="change">-</div>
+  </div>
+</div>
+
+<div class="timeframes">
+  <div class="tf-btn active" onclick="changeInterval('1m', this)">1m</div>
+  <div class="tf-btn" onclick="changeInterval('5m', this)">5m</div>
+  <div class="tf-btn" onclick="changeInterval('15m', this)">15m</div>
+  <div class="tf-btn" onclick="changeInterval('1h', this)">1h</div>
+  <div class="tf-btn" onclick="changeInterval('4h', this)">4h</div>
+  <div class="tf-btn" onclick="changeInterval('1d', this)">1d</div>
+</div>
+
 <div class="controls">
+  <button class="binance-btn" id="drawBtn" onclick="toggleDrawing()">Draw</button>
+  <button class="binance-btn" onclick="clearFuture()">Delete</button>
 
-<button class="binance-btn" id="drawBtn" onclick="toggleDrawing()">Draw OFF</button>
-<button class="binance-btn" onclick="clearFuture()">미래봉 삭제</button>
-
-<button class="binance-btn" onclick="toggleMA(7)">MA7</button>
-<button class="binance-btn" onclick="toggleMA(15)">MA15</button>
-<button class="binance-btn" onclick="toggleMA(60)">MA60</button>
-<button class="binance-btn" onclick="toggleMA(100)">MA100</button>
-<button class="binance-btn" onclick="toggleMA(200)">MA200</button>
-
+  <button class="binance-btn" onclick="toggleMA(7)">MA7</button>
+  <button class="binance-btn" onclick="toggleMA(15)">MA15</button>
+  <button class="binance-btn" onclick="toggleMA(60)">MA60</button>
+  <button class="binance-btn" onclick="toggleMA(100)">MA100</button>
+  <button class="binance-btn" onclick="toggleMA(200)">MA200</button>
 </div>
 
 <div id="chart"></div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
