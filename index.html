@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Binance Futures Chart</title>
-
+<title>Binance Futures Advanced</title>
 <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
@@ -17,48 +16,48 @@ body {
 
 /* 상단 영역 */
 .header {
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid #1E2329;
+}
+
+.symbol-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.left-header {
-  display: flex;
-  flex-direction: column;
 }
 
 .symbol-select {
   background: #1E2329;
   color: #EAECEF;
   border: 1px solid #2B3139;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
-  font-size: 14px;
 }
 
 .price {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
-.change {
-  font-size: 14px;
+.change { font-size: 14px; }
+
+.funding {
+  font-size: 13px;
+  margin-top: 4px;
 }
 
 /* 타임프레임 */
 .timeframes {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   padding: 10px 16px;
   border-bottom: 1px solid #1E2329;
-  font-size: 14px;
 }
 
 .tf-btn {
   color: #848E9C;
   cursor: pointer;
+  font-size: 14px;
 }
 
 .tf-btn.active {
@@ -83,17 +82,10 @@ body {
   color: #848E9C;
   font-size: 13px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: 0.2s;
-}
-
-.binance-btn.active {
-  font-weight: 600;
-  color: #000;
 }
 
 #chart {
-  height: calc(100vh - 210px);
+  height: calc(100vh - 250px);
   padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
@@ -102,18 +94,21 @@ body {
 <body>
 
 <div class="header">
-  <div class="left-header">
+  <div class="symbol-row">
     <select class="symbol-select" onchange="changeSymbol(this.value)">
-      <option value="BTCUSDT">BTCUSDT</option>
-      <option value="ETHUSDT">ETHUSDT</option>
-      <option value="SOLUSDT">SOLUSDT</option>
-      <option value="XRPUSDT">XRPUSDT</option>
-      <option value="DOGEUSDT">DOGEUSDT</option>
-      <option value="BNBUSDT">BNBUSDT</option>
+      <option>BTCUSDT</option>
+      <option>ETHUSDT</option>
+      <option>SOLUSDT</option>
+      <option>XRPUSDT</option>
+      <option>DOGEUSDT</option>
+      <option>BNBUSDT</option>
     </select>
-    <div class="price" id="price">-</div>
-    <div class="change" id="change">-</div>
+    <div>
+      <div class="price" id="price">-</div>
+      <div class="change" id="change">-</div>
+    </div>
   </div>
+  <div class="funding" id="funding">Funding: -</div>
 </div>
 
 <div class="timeframes">
@@ -123,17 +118,6 @@ body {
   <div class="tf-btn" onclick="changeInterval('1h', this)">1h</div>
   <div class="tf-btn" onclick="changeInterval('4h', this)">4h</div>
   <div class="tf-btn" onclick="changeInterval('1d', this)">1d</div>
-</div>
-
-<div class="controls">
-  <button class="binance-btn" id="drawBtn" onclick="toggleDrawing()">Draw</button>
-  <button class="binance-btn" onclick="clearFuture()">Delete</button>
-
-  <button class="binance-btn" onclick="toggleMA(7)">MA7</button>
-  <button class="binance-btn" onclick="toggleMA(15)">MA15</button>
-  <button class="binance-btn" onclick="toggleMA(60)">MA60</button>
-  <button class="binance-btn" onclick="toggleMA(100)">MA100</button>
-  <button class="binance-btn" onclick="toggleMA(200)">MA200</button>
 </div>
 
 <div id="chart"></div>
