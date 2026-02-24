@@ -38,70 +38,129 @@ maSeries[p]=chart.addLineSeries({
   priceLineVisible:false,
   lastValueVisible:false
 });
-document.getElementById("ma"+p+"Btn").classList.add("active");
-document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 });
 
 let dataCache=[];
-/* ================= 미래봉 완전 안정판 ================= */
+let drawing=false;
+let futurePoints=[];
 
-let drawing = false;
-let futurePoints = [];
-
-const futureSeries = chart.addLineSeries({
-  color: "#AAAAAA",
-  lineWidth: 2,
-  priceLineVisible: false,
-  lastValueVisible: false
+const futureSeries=chart.addLineSeries({
+color:"#AAAAAA",
+lineWidth:2,
+priceLineVisible:false,
+lastValueVisible:false
 });
 
+/* ================= MA 계산 ================= */
+function calcMA(data,period){
+let result=[];
+let sum=0;
+for(let i=0;i<data.length;i++){
+sum+=data[i].close;
+if(i>=period) sum-=data[i-period].close;
+if(i>=period-1){
+result.push({time:data[i].time,value:sum/period});
+}
+}
+return result;
+}
+
+/* ================= 데이터 로드 ================= */
+async function loadData(){
+try{
+const res=await fetch(
+`https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
+);
+const raw=await res.json();
+
+dataCache=raw.map(d=>({
+time:d[0]/1000,
+open:+d[1],
+high:+d[2],
+low:+d[3],
+close:+d[4],
+}));
+
+candleSeries.setData(dataCache);
+updateAllMA();
+chart.timeScale().fitContent();
+
+}catch(e){
+console.error("loadData error:",e);
+}
+}
+
+/* ================= MA 업데이트 ================= */
+function updateAllMA(){
+Object.keys(maSeries).forEach(p=>{
+if(maState[p]){
+maSeries[p].setData(calcMA(dataCache,Number(p)));
+}else{
+maSeries[p].setData([]);
+}
+});
+}
+
+function toggleMA(period){
+maState[period]=!maState[period];
+updateAllMA();
+}
+
+/* ================= 타임프레임 변경 ================= */
+function changeTF(tf){
+interval=tf;
+loadData();
+}
+
+/* ================= 미래봉 ================= */
 function toggleDraw(){
-  drawing = !drawing;
+drawing=!drawing;
 }
 
 function clearFuture(){
-  futurePoints = [];
-  futureSeries.setData([]);
-  const el = document.getElementById("futurePercent");
-  if(el) el.innerText = "";
+futurePoints=[];
+futureSeries.setData([]);
+const el=document.getElementById("futurePercent");
+if(el) el.innerText="";
 }
 
-/* 클릭으로만 생성 (가장 안정적 방식) */
-chart.subscribeClick(param => {
+/* ⭐ 안정적인 클릭 방식 */
+chart.subscribeClick(param=>{
+if(!drawing) return;
+if(!param.time) return;
+if(!param.seriesPrices) return;
 
-  if(!drawing) return;
-  if(!param.time) return;
-  if(!param.seriesPrices) return;
+const price=param.seriesPrices.get(candleSeries);
+if(price===undefined) return;
 
-  const price = param.seriesPrices.get(candleSeries);
-  if(price === undefined) return;
-
-  futurePoints.push({
-    time: param.time,
-    value: price
-  });
-
-  futureSeries.setData(futurePoints);
-  updateFuturePercent(price);
+futurePoints.push({
+time:param.time,
+value:price
 });
 
+futureSeries.setData(futurePoints);
+updateFuturePercent(price);
+});
+
+/* ================= 미래 퍼센트 ================= */
 function updateFuturePercent(price){
-  if(!dataCache.length) return;
+if(!dataCache.length) return;
 
-  const lastClose = dataCache[dataCache.length-1].close;
-  const diff = ((price-lastClose)/lastClose)*100;
+const lastClose=dataCache[dataCache.length-1].close;
+const diff=((price-lastClose)/lastClose)*100;
 
-  const el = document.getElementById("futurePercent");
-  if(!el) return;
+const el=document.getElementById("futurePercent");
+if(!el) return;
 
-  el.innerText = diff.toFixed(2) + "%";
-  el.style.color = diff>=0 ? "#0ECB81" : "#F6465D";
+el.innerText=diff.toFixed(2)+"%";
+el.style.color=diff>=0?"#0ECB81":"#F6465D";
 }
 
+/* ================= 심볼 변경 ================= */
 function changeSymbol(symbol){
 currentSymbol=symbol;
 loadData();
 }
 
+/* ================= 최초 실행 ================= */
 loadData();
-
