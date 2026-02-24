@@ -1,16 +1,12 @@
 let currentSymbol="BTCUSDT";
 let interval="1m";
 
-/* ================= 차트 생성 ================= */
-
 const chart=LightweightCharts.createChart(
 document.getElementById("chart"),
 {
 layout:{background:{color:"#0B0E11"},textColor:"#848E9C"},
 grid:{vertLines:{color:"#1E2329"},horzLines:{color:"#1E2329"}},
 rightPriceScale:{borderColor:"#2B3139"},
-handleScroll:true,
-handleScale:true,
 timeScale:{
   timeVisible:true,
   secondsVisible:false,
@@ -23,8 +19,6 @@ timeScale:{
 );
 
 const candleSeries=chart.addCandlestickSeries();
-
-/* ================= MA ================= */
 
 const maColors={
 7:"#FCD535",
@@ -48,9 +42,30 @@ document.getElementById("ma"+p+"Btn").classList.add("active");
 document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 });
 
-/* ================= 데이터 ================= */
-
 let dataCache=[];
+let drawing=false;
+let futurePoints=[];
+
+const futureSeries=chart.addLineSeries({
+color:"#AAAAAA",
+lineWidth:2,
+priceLineVisible:false,
+lastValueVisible:false
+});
+
+/* MA 계산 */
+function calcMA(data,period){
+let result=[];
+let sum=0;
+for(let i=0;i<data.length;i++){
+sum+=data[i].close;
+if(i>=period) sum-=data[i-period].close;
+if(i>=period-1){
+result.push({time:data[i].time,value:sum/period});
+}
+}
+return result;
+}
 
 async function loadData(){
 const res=await fetch(
@@ -71,21 +86,6 @@ updateAllMA();
 chart.timeScale().fitContent();
 }
 
-/* ================= MA 계산 ================= */
-
-function calcMA(data,period){
-let result=[];
-let sum=0;
-for(let i=0;i<data.length;i++){
-sum+=data[i].close;
-if(i>=period) sum-=data[i-period].close;
-if(i>=period-1){
-result.push({time:data[i].time,value:sum/period});
-}
-}
-return result;
-}
-
 function updateAllMA(){
 Object.keys(maSeries).forEach(p=>{
 if(maState[p]){
@@ -102,8 +102,6 @@ document.getElementById("ma"+period+"Btn").classList.toggle("active");
 updateAllMA();
 }
 
-/* ================= TimeFrame ================= */
-
 function changeTF(tf){
 interval=tf;
 document.querySelectorAll("[id^='tf_']").forEach(b=>b.classList.remove("active"));
@@ -111,94 +109,44 @@ document.getElementById("tf_"+tf).classList.add("active");
 loadData();
 }
 
-/* ================= 미래봉 수정 안정판 ================= */
-
-let drawing=false;
-let isPointerDown=false;
-let futurePoints=[];
-
-const futureSeries=chart.addLineSeries({
-  color:"#AAAAAA",
-  lineWidth:2,
-  priceLineVisible:false,
-  lastValueVisible:false
-});
-
-/* 버튼 */
 function toggleDraw(){
-  drawing=!drawing;
+drawing=!drawing;
 }
 
-/* 삭제 */
 function clearFuture(){
-  futurePoints=[];
-  futureSeries.setData([]);
-  document.getElementById("futurePercent").innerText="";
+futurePoints=[];
+futureSeries.setData([]);
+document.getElementById("futurePercent").innerText="";
 }
 
-/* 점 추가 */
-function addFuturePoint(param){
-  if(!drawing) return;
-  if(!param.seriesPrices) return;
+function handlePointer(param){
+if(!drawing) return;
+if(!param.point) return;
 
-  const price = param.seriesPrices.get(candleSeries);
-  if(price===undefined) return;
+const price=candleSeries.coordinateToPrice(param.point.y);
+const time=chart.timeScale().coordinateToTime(param.point.x);
+if(!price||!time) return;
 
-  const time = param.time;
-  if(!time) return;
-
-  futurePoints.push({
-    time: time,
-    value: price
-  });
-
-  futureSeries.setData(futurePoints);
-  updateFuturePercent(price);
+futurePoints.push({time,value:price});
+futureSeries.setData(futurePoints);
+updateFuturePercent(price);
 }
 
-/* ===== PC ===== */
-
-chart.subscribeClick(param=>{
-  addFuturePoint(param);
-});
+chart.subscribeClick(handlePointer);
 
 chart.subscribeCrosshairMove(param=>{
-  if(drawing && isPointerDown){
-    addFuturePoint(param);
-  }
+if(drawing && param.point){
+handlePointer(param);
+}
 });
-
-/* 마우스 누름 감지 */
-document.getElementById("chart").addEventListener("mousedown",()=>{
-  isPointerDown=true;
-});
-
-document.addEventListener("mouseup",()=>{
-  isPointerDown=false;
-});
-
-/* ===== 모바일 ===== */
-
-document.getElementById("chart").addEventListener("touchstart",()=>{
-  isPointerDown=true;
-});
-
-document.addEventListener("touchend",()=>{
-  isPointerDown=false;
-});
-
-/* ================= 퍼센트 표시 ================= */
 
 function updateFuturePercent(price){
 const lastClose=dataCache[dataCache.length-1].close;
 const diff=((price-lastClose)/lastClose)*100;
-
 const el=document.getElementById("futurePercent");
 el.innerText=diff.toFixed(2)+"%";
 el.style.color=diff>=0?"#0ECB81":"#F6465D";
 }
-
-/* ================= 심볼 ================= */
 
 function changeSymbol(symbol){
 currentSymbol=symbol;
@@ -206,4 +154,3 @@ loadData();
 }
 
 loadData();
-
