@@ -3,93 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Binance Futures Stable</title>
+<title>Binance Futures Clone</title>
 
-<script src="https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
-body {
-  margin: 0;
-  background: #0B0E11;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #EAECEF;
+body{
+  margin:0;
+  background:#0B0E11;
+  color:#EAECEF;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
 }
 
-.header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #1E2329;
+.topbar{
+  padding:10px;
+  border-bottom:1px solid #1E2329;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
 }
 
-.symbol-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+button{
+  background:#1E2329;
+  border:1px solid #2B3139;
+  color:#848E9C;
+  padding:6px 10px;
+  font-size:12px;
+  border-radius:6px;
 }
 
-.symbol-select {
-  background: #1E2329;
-  color: #EAECEF;
-  border: 1px solid #2B3139;
-  padding: 6px 8px;
-  border-radius: 6px;
+button.active{
+  color:white;
 }
 
-.price { font-size: 22px; font-weight: 700; }
-.change { font-size: 14px; }
-
-.funding { font-size: 13px; margin-top: 4px; }
-
-.timeframes {
-  display: flex;
-  gap: 16px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #1E2329;
-}
-
-.tf-btn {
-  color: #848E9C;
-  cursor: pointer;
-}
-
-.tf-btn.active {
-  color: #FCD535;
-  font-weight: 600;
-}
-
-#chart {
-  height: calc(100vh - 220px);
-  padding-bottom: env(safe-area-inset-bottom);
+#chart{
+  height:78vh;
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">
-  <div class="symbol-row">
-    <select class="symbol-select" onchange="changeSymbol(this.value)">
-      <option>BTCUSDT</option>
-      <option>ETHUSDT</option>
-      <option>SOLUSDT</option>
-      <option>XRPUSDT</option>
-      <option>DOGEUSDT</option>
-      <option>BNBUSDT</option>
-    </select>
-    <div>
-      <div class="price" id="price">-</div>
-      <div class="change" id="change">-</div>
-    </div>
-  </div>
-  <div class="funding" id="funding">Funding: -</div>
-</div>
+<div class="topbar">
 
-<div class="timeframes">
-  <div class="tf-btn active" onclick="changeInterval('1m', this)">1m</div>
-  <div class="tf-btn" onclick="changeInterval('5m', this)">5m</div>
-  <div class="tf-btn" onclick="changeInterval('15m', this)">15m</div>
-  <div class="tf-btn" onclick="changeInterval('1h', this)">1h</div>
-  <div class="tf-btn" onclick="changeInterval('4h', this)">4h</div>
-  <div class="tf-btn" onclick="changeInterval('1d', this)">1d</div>
+  <select onchange="changeSymbol(this.value)">
+    <option>BTCUSDT</option>
+    <option>ETHUSDT</option>
+    <option>SOLUSDT</option>
+    <option>XRPUSDT</option>
+    <option>DOGEUSDT</option>
+    <option>BNBUSDT</option>
+  </select>
+
+  <button id="ma7Btn" onclick="toggleMA(7)">MA7</button>
+  <button id="ma15Btn" onclick="toggleMA(15)">MA15</button>
+  <button id="ma60Btn" onclick="toggleMA(60)">MA60</button>
+  <button id="ma100Btn" onclick="toggleMA(100)">MA100</button>
+  <button id="ma200Btn" onclick="toggleMA(200)">MA200</button>
+
+  <button onclick="toggleDraw()">미래봉 ON/OFF</button>
+  <button onclick="clearFuture()">미래봉 삭제</button>
+
 </div>
 
 <div id="chart"></div>
