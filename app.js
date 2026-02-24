@@ -98,7 +98,15 @@ maSeries[p].setData([]);
 
 function toggleMA(period){
 maState[period]=!maState[period];
+document.getElementById("ma"+period+"Btn").classList.toggle("active");
 updateAllMA();
+}
+
+function changeTF(tf){
+interval=tf;
+document.querySelectorAll("[id^='tf_']").forEach(b=>b.classList.remove("active"));
+document.getElementById("tf_"+tf).classList.add("active");
+loadData();
 }
 
 function toggleDraw(){
@@ -111,7 +119,6 @@ futureSeries.setData([]);
 document.getElementById("futurePercent").innerText="";
 }
 
-/* 미래봉 생성 */
 function handlePointer(param){
 if(!drawing) return;
 if(!param.point) return;
@@ -125,11 +132,9 @@ futureSeries.setData(futurePoints);
 updateFuturePercent(price);
 }
 
-/* PC */
 chart.subscribeClick(handlePointer);
 
-/* 모바일 */
-chart.subscribeCrosshairMove((param)=>{
+chart.subscribeCrosshairMove(param=>{
 if(drawing && param.point){
 handlePointer(param);
 }
@@ -138,7 +143,6 @@ handlePointer(param);
 function updateFuturePercent(price){
 const lastClose=dataCache[dataCache.length-1].close;
 const diff=((price-lastClose)/lastClose)*100;
-
 const el=document.getElementById("futurePercent");
 el.innerText=diff.toFixed(2)+"%";
 el.style.color=diff>=0?"#0ECB81":"#F6465D";
