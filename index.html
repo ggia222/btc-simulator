@@ -15,13 +15,17 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,sans-serif;
 }
 
+/* 버튼영역을 위 레이어로 */
 .topbar{
+  position:relative;
+  z-index:10;
   padding:8px;
   border-bottom:1px solid #1E2329;
   display:flex;
   flex-wrap:wrap;
   gap:6px;
   align-items:center;
+  background:#0B0E11;
 }
 
 button, select{
@@ -31,6 +35,7 @@ button, select{
   padding:6px 10px;
   font-size:12px;
   border-radius:6px;
+  cursor:pointer;
 }
 
 button.active{
@@ -62,7 +67,6 @@ button.active{
 <option>DOGEUSDT</option>
 </select>
 
-<!-- Time Frame -->
 <button id="tf_1m" onclick="changeTF('1m')" class="active">1m</button>
 <button id="tf_5m" onclick="changeTF('5m')">5m</button>
 <button id="tf_15m" onclick="changeTF('15m')">15m</button>
@@ -70,14 +74,7 @@ button.active{
 <button id="tf_4h" onclick="changeTF('4h')">4h</button>
 <button id="tf_1d" onclick="changeTF('1d')">1d</button>
 
-<!-- MA -->
-<button id="ma7Btn" onclick="toggleMA(7)">MA7</button>
-<button id="ma15Btn" onclick="toggleMA(15)">MA15</button>
-<button id="ma60Btn" onclick="toggleMA(60)">MA60</button>
-<button id="ma100Btn" onclick="toggleMA(100)">MA100</button>
-<button id="ma200Btn" onclick="toggleMA(200)">MA200</button>
-
-<button onclick="toggleDraw()">미래봉 ON/OFF</button>
+<button id="drawBtn" onclick="toggleDraw()">미래봉 OFF</button>
 <button onclick="clearFuture()">미래봉 삭제</button>
 
 <div id="futurePercent" class="percentBox"></div>
