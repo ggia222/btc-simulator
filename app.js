@@ -10,6 +10,7 @@ rightPriceScale:{borderColor:"#2B3139"},
 timeScale:{
   timeVisible:true,
   secondsVisible:false,
+  rightBarStaysOnScroll:true,
   tickMarkFormatter:(time)=>{
     const d=new Date(time*1000);
     return d.toLocaleString("ko-KR",{timeZone:"Asia/Seoul"});
@@ -198,5 +199,6 @@ loadData();
 }
 
 loadData();
+
 
 
