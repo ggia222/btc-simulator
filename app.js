@@ -1,77 +1,67 @@
 const KST_OFFSET = 9 * 60 * 60;
 
+let currentSymbol = "BTCUSDT";
+let interval = "1m";
+
 const chart = LightweightCharts.createChart(
   document.getElementById("chart"),
   {
-    layout: { background: { color: "#111" }, textColor: "#DDD" },
-    grid: { vertLines: { color: "#222" }, horzLines: { color: "#222" } },
-    rightPriceScale: { borderColor: "#444" },
+    layout: { background: { color: "#0B0E11" }, textColor: "#848E9C" },
+    grid: { vertLines: { color: "#1E2329" }, horzLines: { color: "#1E2329" } },
+    rightPriceScale: { borderColor: "#2B3139" },
     timeScale: {
-      borderColor: "#444",
+      borderColor: "#2B3139",
       timeVisible: true,
-      secondsVisible: true,
+      secondsVisible: false,
       tickMarkFormatter: (time) => {
-        const date = new Date((time + KST_OFFSET) * 1000);
-        const yyyy = date.getFullYear();
-        const MM = String(date.getMonth() + 1).padStart(2, "0");
-        const dd = String(date.getDate()).padStart(2, "0");
-        const hh = String(date.getHours()).padStart(2, "0");
-        const mm = String(date.getMinutes()).padStart(2, "0");
-        const ss = String(date.getSeconds()).padStart(2, "0");
-        return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
+        const d = new Date((time + KST_OFFSET) * 1000);
+        const MM = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `${MM}-${dd} ${hh}:${mm}`;
       },
     },
   }
 );
 
 const candleSeries = chart.addCandlestickSeries();
-const futureSeries = chart.addLineSeries({
-  color: "#00bfff",
-  lineWidth: 0,
-  crosshairMarkerVisible: true,
-  crosshairMarkerRadius: 4,
-  pointMarkersVisible: true,
-});
 
 let originalData = [];
-let futureData = [];
-let interval = "1h";
-let drawingMode = false;
 
-const chartElement = document.getElementById("chart");
-
-// ---------- 가격 변환 ----------
-function getPriceFromClientY(clientY) {
-  const rect = chartElement.getBoundingClientRect();
-  const y = clientY - rect.top;
-  return candleSeries.coordinateToPrice(y);
+/* 심볼 변경 */
+function changeSymbol(symbol) {
+  currentSymbol = symbol;
+  loadData();
 }
 
-// ---------- 미래 점 ----------
-function getIntervalSeconds() {
-  if (interval === "1m") return 60;
-  if (interval === "5m") return 300;
-  if (interval === "15m") return 900;
-  if (interval === "1h") return 3600;
-  if (interval === "4h") return 14400;
-  if (interval === "1d") return 86400;
+/* 인터벌 변경 */
+function changeInterval(newInterval, el) {
+  interval = newInterval;
+  document.querySelectorAll(".tf-btn")
+    .forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  loadData();
 }
 
-function createFuturePoint(price) {
-  if (!price) return;
+/* 헤더 업데이트 */
+function updateHeader() {
+  const last = originalData.slice(-1)[0];
+  const first = originalData[0];
+  if (!last || !first) return;
 
-  const last = [...originalData, ...futureData].slice(-1)[0];
-  const nextTime = last.time + getIntervalSeconds();
+  const change = ((last.close - first.close) / first.close) * 100;
 
-  const point = { time: nextTime, value: price };
-  futureData.push(point);
-  futureSeries.update(point);
+  document.getElementById("price").innerText = last.close.toFixed(4);
+  const changeEl = document.getElementById("change");
+  changeEl.innerText = change.toFixed(2) + "%";
+  changeEl.style.color = change >= 0 ? "#0ECB81" : "#F6465D";
 }
 
-// ---------- 데이터 로드 ----------
+/* 데이터 로드 (Futures API) */
 async function loadData() {
   const res = await fetch(
-    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=300`
+    `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=300`
   );
   const data = await res.json();
 
@@ -84,77 +74,9 @@ async function loadData() {
   }));
 
   candleSeries.setData(originalData);
-  futureData = [];
-  futureSeries.setData([]);
+  updateHeader();
 
   chart.timeScale().fitContent();
-  chart.timeScale().scrollToRealTime();
 }
-
-function toggleDrawing() {
-  drawingMode = !drawingMode;
-  document.getElementById("drawBtn").innerText =
-    drawingMode ? "Draw ON" : "Draw OFF";
-}
-
-function clearFuture() {
-  futureData = [];
-  futureSeries.setData([]);
-}
-
-function changeInterval(newInterval) {
-  interval = newInterval;
-  loadData();
-}
-
-// ============================
-// 🖥 PC 마우스 지원
-// ============================
-
-let isDrawing = false;
-
-chartElement.addEventListener("mousedown", (e) => {
-  if (!drawingMode) return;
-  isDrawing = true;
-  createFuturePoint(getPriceFromClientY(e.clientY));
-});
-
-chartElement.addEventListener("mousemove", (e) => {
-  if (!isDrawing || !drawingMode) return;
-  createFuturePoint(getPriceFromClientY(e.clientY));
-});
-
-chartElement.addEventListener("mouseup", () => {
-  isDrawing = false;
-});
-
-// ============================
-// 📱 모바일 터치 지원
-// ============================
-
-chartElement.addEventListener("touchstart", (e) => {
-  if (!drawingMode) return;
-
-  // 두 손가락이면 확대 허용
-  if (e.touches.length > 1) return;
-
-  isDrawing = true;
-  const touch = e.touches[0];
-  createFuturePoint(getPriceFromClientY(touch.clientY));
-});
-
-chartElement.addEventListener("touchmove", (e) => {
-  if (!isDrawing || !drawingMode) return;
-  if (e.touches.length > 1) return;
-
-  e.preventDefault(); // 스크롤 방지
-
-  const touch = e.touches[0];
-  createFuturePoint(getPriceFromClientY(touch.clientY));
-}, { passive: false });
-
-chartElement.addEventListener("touchend", () => {
-  isDrawing = false;
-});
 
 loadData();
