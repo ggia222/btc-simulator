@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC MA Simulator</title>
+
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="topbar">
+    <!-- Timeframe -->
+    <button onclick="changeInterval('1m')">1M</button>
+    <button onclick="changeInterval('5m')">5M</button>
+    <button onclick="changeInterval('15m')">15M</button>
+    <button onclick="changeInterval('1h')">1H</button>
+    <button onclick="changeInterval('4h')">4H</button>
+    <button onclick="changeInterval('1d')">1D</button>
+
+    <!-- Drawing -->
+    <button onclick="toggleDrawing()" id="drawBtn">Draw OFF</button>
+    <button onclick="clearFuture()">미래봉 삭제</button>
+
+    <!-- MA -->
+    <button onclick="toggleMA(7)">MA7</button>
+    <button onclick="toggleMA(15)">MA15</button>
+    <button onclick="toggleMA(60)">MA60</button>
+    <button onclick="toggleMA(100)">MA100</button>
+    <button onclick="toggleMA(200)">MA200</button>
+  </div>
+
+  <div id="chart-container">
+    <div id="chart"></div>
+    <div id="overlay"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

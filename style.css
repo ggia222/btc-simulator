@@ -1,0 +1,38 @@
+body {
+  margin: 0;
+  background: #111;
+  color: white;
+  font-family: Arial;
+}
+
+.topbar {
+  padding: 10px;
+  background: #222;
+}
+
+button {
+  margin-right: 10px;
+}
+
+#chart-container {
+  position: relative;
+  height: 90vh;
+}
+
+#chart {
+  height: 100%;
+}
+
+#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+#overlay.drawing {
+  pointer-events: all;
+  cursor: crosshair;
+}
