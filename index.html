@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Binance Futures Advanced</title>
+<title>Binance Futures Pro</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
@@ -24,7 +24,7 @@ body{
   align-items:center;
 }
 
-button{
+button, select{
   background:#1E2329;
   border:1px solid #2B3139;
   color:#848E9C;
@@ -35,6 +35,7 @@ button{
 
 button.active{
   color:white;
+  background:#2B3139;
 }
 
 .percentBox{
@@ -52,25 +53,34 @@ button.active{
 
 <div class="topbar">
 
-  <select onchange="changeSymbol(this.value)">
-    <option>BTCUSDT</option>
-    <option>ETHUSDT</option>
-    <option>SOLUSDT</option>
-    <option>XRPUSDT</option>
-    <option>DOGEUSDT</option>
-    <option>BNBUSDT</option>
-  </select>
+<select onchange="changeSymbol(this.value)">
+<option>BTCUSDT</option>
+<option>ETHUSDT</option>
+<option>BNBUSDT</option>
+<option>SOLUSDT</option>
+<option>XRPUSDT</option>
+<option>DOGEUSDT</option>
+</select>
 
-  <button id="ma7Btn" onclick="toggleMA(7)">MA7</button>
-  <button id="ma15Btn" onclick="toggleMA(15)">MA15</button>
-  <button id="ma60Btn" onclick="toggleMA(60)">MA60</button>
-  <button id="ma100Btn" onclick="toggleMA(100)">MA100</button>
-  <button id="ma200Btn" onclick="toggleMA(200)">MA200</button>
+<!-- Time Frame -->
+<button id="tf_1m" onclick="changeTF('1m')" class="active">1m</button>
+<button id="tf_5m" onclick="changeTF('5m')">5m</button>
+<button id="tf_15m" onclick="changeTF('15m')">15m</button>
+<button id="tf_1h" onclick="changeTF('1h')">1h</button>
+<button id="tf_4h" onclick="changeTF('4h')">4h</button>
+<button id="tf_1d" onclick="changeTF('1d')">1d</button>
 
-  <button onclick="toggleDraw()">미래봉 ON/OFF</button>
-  <button onclick="clearFuture()">미래봉 삭제</button>
+<!-- MA -->
+<button id="ma7Btn" onclick="toggleMA(7)">MA7</button>
+<button id="ma15Btn" onclick="toggleMA(15)">MA15</button>
+<button id="ma60Btn" onclick="toggleMA(60)">MA60</button>
+<button id="ma100Btn" onclick="toggleMA(100)">MA100</button>
+<button id="ma200Btn" onclick="toggleMA(200)">MA200</button>
 
-  <div id="futurePercent" class="percentBox"></div>
+<button onclick="toggleDraw()">미래봉 ON/OFF</button>
+<button onclick="clearFuture()">미래봉 삭제</button>
+
+<div id="futurePercent" class="percentBox"></div>
 
 </div>
 
