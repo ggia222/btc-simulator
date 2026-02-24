@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Binance Futures Advanced</title>
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<title>Binance Futures Stable</title>
+
+<script src="https://unpkg.com/lightweight-charts@5.0.0/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
 body {
@@ -14,7 +15,6 @@ body {
   color: #EAECEF;
 }
 
-/* 상단 영역 */
 .header {
   padding: 12px 16px;
   border-bottom: 1px solid #1E2329;
@@ -34,19 +34,11 @@ body {
   border-radius: 6px;
 }
 
-.price {
-  font-size: 22px;
-  font-weight: 700;
-}
-
+.price { font-size: 22px; font-weight: 700; }
 .change { font-size: 14px; }
 
-.funding {
-  font-size: 13px;
-  margin-top: 4px;
-}
+.funding { font-size: 13px; margin-top: 4px; }
 
-/* 타임프레임 */
 .timeframes {
   display: flex;
   gap: 16px;
@@ -57,7 +49,6 @@ body {
 .tf-btn {
   color: #848E9C;
   cursor: pointer;
-  font-size: 14px;
 }
 
 .tf-btn.active {
@@ -65,27 +56,8 @@ body {
   font-weight: 600;
 }
 
-/* MA 버튼 */
-.controls {
-  display: flex;
-  gap: 8px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #1E2329;
-  overflow-x: auto;
-}
-
-.binance-btn {
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid #2B3139;
-  background: #1E2329;
-  color: #848E9C;
-  font-size: 13px;
-  cursor: pointer;
-}
-
 #chart {
-  height: calc(100vh - 250px);
+  height: calc(100vh - 220px);
   padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
