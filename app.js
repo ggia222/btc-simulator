@@ -111,61 +111,80 @@ document.getElementById("tf_"+tf).classList.add("active");
 loadData();
 }
 
-/* ================= 미래봉 ================= */
+/* ================= 미래봉 수정 안정판 ================= */
 
 let drawing=false;
+let isPointerDown=false;
 let futurePoints=[];
 
 const futureSeries=chart.addLineSeries({
-color:"#AAAAAA",
-lineWidth:2,
-priceLineVisible:false,
-lastValueVisible:false
+  color:"#AAAAAA",
+  lineWidth:2,
+  priceLineVisible:false,
+  lastValueVisible:false
 });
 
+/* 버튼 */
 function toggleDraw(){
-drawing=!drawing;
-const btn=document.getElementById("drawBtn");
-if(drawing){
-btn.innerText="미래봉 ON";
-btn.classList.add("active");
-}else{
-btn.innerText="미래봉 OFF";
-btn.classList.remove("active");
-}
+  drawing=!drawing;
 }
 
+/* 삭제 */
 function clearFuture(){
-futurePoints=[];
-futureSeries.setData([]);
-document.getElementById("futurePercent").innerText="";
+  futurePoints=[];
+  futureSeries.setData([]);
+  document.getElementById("futurePercent").innerText="";
 }
 
-/* 🔥 안정적인 가격/시간 추출 방식 */
-function handleDraw(param){
-if(!drawing) return;
-if(!param.seriesPrices) return;
+/* 점 추가 */
+function addFuturePoint(param){
+  if(!drawing) return;
+  if(!param.seriesPrices) return;
 
-const price=param.seriesPrices.get(candleSeries);
-if(price===undefined) return;
+  const price = param.seriesPrices.get(candleSeries);
+  if(price===undefined) return;
 
-const time=param.time;
-if(!time) return;
+  const time = param.time;
+  if(!time) return;
 
-futurePoints.push({time,value:price});
-futureSeries.setData(futurePoints);
+  futurePoints.push({
+    time: time,
+    value: price
+  });
 
-updateFuturePercent(price);
+  futureSeries.setData(futurePoints);
+  updateFuturePercent(price);
 }
 
-/* PC 클릭 */
-chart.subscribeClick(handleDraw);
+/* ===== PC ===== */
 
-/* 모바일 터치 + 드래그 */
+chart.subscribeClick(param=>{
+  addFuturePoint(param);
+});
+
 chart.subscribeCrosshairMove(param=>{
-if(drawing && param.seriesPrices){
-handleDraw(param);
-}
+  if(drawing && isPointerDown){
+    addFuturePoint(param);
+  }
+});
+
+/* 마우스 누름 감지 */
+document.getElementById("chart").addEventListener("mousedown",()=>{
+  isPointerDown=true;
+});
+
+document.addEventListener("mouseup",()=>{
+  isPointerDown=false;
+});
+
+/* ===== 모바일 ===== */
+
+document.getElementById("chart").addEventListener("touchstart",()=>{
+  isPointerDown=true;
+});
+
+document.addEventListener("touchend",()=>{
+  isPointerDown=false;
 });
 
 /* ================= 퍼센트 표시 ================= */
@@ -187,3 +206,4 @@ loadData();
 }
 
 loadData();
+
