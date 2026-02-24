@@ -1,4 +1,4 @@
-const KST_OFFSET = 9 * 60 * 60; // 9시간 (초 단위)
+const KST_OFFSET = 9 * 60 * 60;
 
 const chart = LightweightCharts.createChart(
   document.getElementById("chart"),
@@ -10,18 +10,14 @@ const chart = LightweightCharts.createChart(
       borderColor: "#444",
       timeVisible: true,
       secondsVisible: true,
-
-      // 🔥 KST 고정 포맷
       tickMarkFormatter: (time) => {
         const date = new Date((time + KST_OFFSET) * 1000);
-
         const yyyy = date.getFullYear();
         const MM = String(date.getMonth() + 1).padStart(2, "0");
         const dd = String(date.getDate()).padStart(2, "0");
         const hh = String(date.getHours()).padStart(2, "0");
         const mm = String(date.getMinutes()).padStart(2, "0");
         const ss = String(date.getSeconds()).padStart(2, "0");
-
         return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
       },
     },
@@ -29,33 +25,12 @@ const chart = LightweightCharts.createChart(
 );
 
 const candleSeries = chart.addCandlestickSeries();
-
 const futureSeries = chart.addLineSeries({
   color: "#00bfff",
   lineWidth: 0,
   crosshairMarkerVisible: true,
   crosshairMarkerRadius: 4,
   pointMarkersVisible: true,
-});
-
-// ---------------- MA 설정 ----------------
-const maConfig = {
-  7: { color: "#FFD700", width: 2 },
-  15: { color: "#FF8C00", width: 2 },
-  60: { color: "#00C853", width: 2 },
-  100: { color: "#2979FF", width: 2 },
-  200: { color: "#FF1744", width: 4 },
-};
-
-let maEnabled = {};
-let maSeriesMap = {};
-
-Object.keys(maConfig).forEach(period => {
-  maEnabled[period] = false;
-  maSeriesMap[period] = chart.addLineSeries({
-    color: maConfig[period].color,
-    lineWidth: maConfig[period].width,
-  });
 });
 
 let originalData = [];
@@ -65,81 +40,14 @@ let drawingMode = false;
 
 const chartElement = document.getElementById("chart");
 
-// ---------- 마우스 → 가격 ----------
-function getPriceFromMouse(event) {
+// ---------- 가격 변환 ----------
+function getPriceFromClientY(clientY) {
   const rect = chartElement.getBoundingClientRect();
-  const y = event.clientY - rect.top;
+  const y = clientY - rect.top;
   return candleSeries.coordinateToPrice(y);
 }
 
-// ---------- Binance 로드 ----------
-async function loadData() {
-  const res = await fetch(
-    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=300`
-  );
-  const data = await res.json();
-
-  originalData = data.map(d => ({
-    time: d[0] / 1000, // UTC 그대로 유지
-    open: +d[1],
-    high: +d[2],
-    low: +d[3],
-    close: +d[4],
-  }));
-
-  candleSeries.setData(originalData);
-  futureData = [];
-  futureSeries.setData([]);
-  updateAllMA();
-
-  chart.timeScale().fitContent();
-  chart.timeScale().scrollToRealTime();
-}
-
-// ---------- MA 계산 ----------
-function calculateMA(data, period) {
-  const result = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) continue;
-    let sum = 0;
-    for (let j = 0; j < period; j++) {
-      sum += data[i - j].close;
-    }
-    result.push({ time: data[i].time, value: sum / period });
-  }
-  return result;
-}
-
-function updateAllMA() {
-  const combined = [
-    ...originalData,
-    ...futureData.map(d => ({
-      time: d.time,
-      close: d.value
-    }))
-  ];
-
-  Object.keys(maConfig).forEach(period => {
-    if (maEnabled[period]) {
-      maSeriesMap[period].setData(calculateMA(combined, parseInt(period)));
-    } else {
-      maSeriesMap[period].setData([]);
-    }
-  });
-}
-
-// ---------- 기타 함수 ----------
-function toggleMA(period) {
-  maEnabled[period] = !maEnabled[period];
-  updateAllMA();
-}
-
-function toggleDrawing() {
-  drawingMode = !drawingMode;
-  document.getElementById("drawBtn").innerText =
-    drawingMode ? "Draw ON" : "Draw OFF";
-}
-
+// ---------- 미래 점 ----------
 function getIntervalSeconds() {
   if (interval === "1m") return 60;
   if (interval === "5m") return 300;
@@ -150,41 +58,103 @@ function getIntervalSeconds() {
 }
 
 function createFuturePoint(price) {
+  if (!price) return;
+
   const last = [...originalData, ...futureData].slice(-1)[0];
   const nextTime = last.time + getIntervalSeconds();
 
   const point = { time: nextTime, value: price };
   futureData.push(point);
   futureSeries.update(point);
-  updateAllMA();
 }
 
-let isDragging = false;
+// ---------- 데이터 로드 ----------
+async function loadData() {
+  const res = await fetch(
+    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=300`
+  );
+  const data = await res.json();
 
-chartElement.addEventListener("mousedown", e => {
-  if (!drawingMode) return;
-  isDragging = true;
-  createFuturePoint(getPriceFromMouse(e));
-});
+  originalData = data.map(d => ({
+    time: d[0] / 1000,
+    open: +d[1],
+    high: +d[2],
+    low: +d[3],
+    close: +d[4],
+  }));
 
-chartElement.addEventListener("mousemove", e => {
-  if (!isDragging || !drawingMode) return;
-  createFuturePoint(getPriceFromMouse(e));
-});
+  candleSeries.setData(originalData);
+  futureData = [];
+  futureSeries.setData([]);
 
-chartElement.addEventListener("mouseup", () => {
-  isDragging = false;
-});
+  chart.timeScale().fitContent();
+  chart.timeScale().scrollToRealTime();
+}
+
+function toggleDrawing() {
+  drawingMode = !drawingMode;
+  document.getElementById("drawBtn").innerText =
+    drawingMode ? "Draw ON" : "Draw OFF";
+}
 
 function clearFuture() {
   futureData = [];
   futureSeries.setData([]);
-  updateAllMA();
 }
 
 function changeInterval(newInterval) {
   interval = newInterval;
   loadData();
 }
+
+// ============================
+// 🖥 PC 마우스 지원
+// ============================
+
+let isDrawing = false;
+
+chartElement.addEventListener("mousedown", (e) => {
+  if (!drawingMode) return;
+  isDrawing = true;
+  createFuturePoint(getPriceFromClientY(e.clientY));
+});
+
+chartElement.addEventListener("mousemove", (e) => {
+  if (!isDrawing || !drawingMode) return;
+  createFuturePoint(getPriceFromClientY(e.clientY));
+});
+
+chartElement.addEventListener("mouseup", () => {
+  isDrawing = false;
+});
+
+// ============================
+// 📱 모바일 터치 지원
+// ============================
+
+chartElement.addEventListener("touchstart", (e) => {
+  if (!drawingMode) return;
+
+  // 두 손가락이면 확대 허용
+  if (e.touches.length > 1) return;
+
+  isDrawing = true;
+  const touch = e.touches[0];
+  createFuturePoint(getPriceFromClientY(touch.clientY));
+});
+
+chartElement.addEventListener("touchmove", (e) => {
+  if (!isDrawing || !drawingMode) return;
+  if (e.touches.length > 1) return;
+
+  e.preventDefault(); // 스크롤 방지
+
+  const touch = e.touches[0];
+  createFuturePoint(getPriceFromClientY(touch.clientY));
+}, { passive: false });
+
+chartElement.addEventListener("touchend", () => {
+  isDrawing = false;
+});
 
 loadData();
