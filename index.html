@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Binance Futures Clone</title>
+<title>Binance Futures Advanced</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
@@ -16,11 +16,12 @@ body{
 }
 
 .topbar{
-  padding:10px;
+  padding:8px;
   border-bottom:1px solid #1E2329;
   display:flex;
   flex-wrap:wrap;
   gap:6px;
+  align-items:center;
 }
 
 button{
@@ -34,6 +35,11 @@ button{
 
 button.active{
   color:white;
+}
+
+.percentBox{
+  font-size:13px;
+  font-weight:600;
 }
 
 #chart{
@@ -63,6 +69,8 @@ button.active{
 
   <button onclick="toggleDraw()">미래봉 ON/OFF</button>
   <button onclick="clearFuture()">미래봉 삭제</button>
+
+  <div id="futurePercent" class="percentBox"></div>
 
 </div>
 
