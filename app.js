@@ -1,5 +1,3 @@
-const KST_OFFSET = 9 * 60 * 60;
-
 let currentSymbol = "BTCUSDT";
 let interval = "1m";
 
@@ -10,38 +8,17 @@ const chart = LightweightCharts.createChart(
     grid: { vertLines: { color: "#1E2329" }, horzLines: { color: "#1E2329" } },
     rightPriceScale: { borderColor: "#2B3139" },
     timeScale: { timeVisible: true, secondsVisible: false },
-    crosshair: { mode: 0 },
   }
 );
 
-const candleSeries = chart.addCandlestickSeries();
+/* ✅ v5 방식 */
+const candleSeries = chart.addSeries(
+  LightweightCharts.CandlestickSeries
+);
 
 let originalData = [];
 
-/* --------- 고속 MA 계산 --------- */
-function calculateMAFast(data, period) {
-  const result = [];
-  let sum = 0;
-
-  for (let i = 0; i < data.length; i++) {
-    sum += data[i].close;
-
-    if (i >= period) {
-      sum -= data[i - period].close;
-    }
-
-    if (i >= period - 1) {
-      result.push({
-        time: data[i].time,
-        value: sum / period
-      });
-    }
-  }
-
-  return result;
-}
-
-/* --------- 헤더 업데이트 --------- */
+/* 헤더 업데이트 */
 function updateHeader() {
   const last = originalData.at(-1);
   const first = originalData[0];
@@ -57,7 +34,7 @@ function updateHeader() {
   changeEl.style.color = change >= 0 ? "#0ECB81" : "#F6465D";
 }
 
-/* --------- Funding Rate --------- */
+/* Funding */
 async function loadFunding() {
   const res = await fetch(
     `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${currentSymbol}`
@@ -73,7 +50,7 @@ async function loadFunding() {
   el.style.color = rate >= 0 ? "#F6465D" : "#0ECB81";
 }
 
-/* --------- 데이터 --------- */
+/* 데이터 */
 async function loadData() {
   const res = await fetch(
     `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
@@ -94,7 +71,7 @@ async function loadData() {
   chart.timeScale().fitContent();
 }
 
-/* --------- 인터벌 --------- */
+/* 인터벌 */
 function changeInterval(newInterval, el) {
   interval = newInterval;
   document.querySelectorAll(".tf-btn")
@@ -103,7 +80,7 @@ function changeInterval(newInterval, el) {
   loadData();
 }
 
-/* --------- 심볼 --------- */
+/* 심볼 */
 function changeSymbol(symbol) {
   currentSymbol = symbol;
   loadData();
