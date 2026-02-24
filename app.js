@@ -43,6 +43,8 @@ document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 });
 
 let dataCache=[];
+/* ================= 미래봉 완전 안정판 ================= */
+
 let drawing=false;
 let futurePoints=[];
 let futureIndex=1;
@@ -56,19 +58,23 @@ function clearFuture(){
   futurePoints=[];
   futureSeries.setData([]);
   futureIndex=1;
+  document.getElementById("futurePercent").innerText="";
 }
 
 chart.subscribeClick(param=>{
   if(!drawing) return;
+  if(!param.point) return;
   if(!dataCache.length) return;
+
+  // 🔥 Y좌표 → 가격 변환 (v4 안정 방식)
+  const price=candleSeries.coordinateToPrice(param.point.y);
+  if(price===null || price===undefined) return;
 
   const lastBar=dataCache[dataCache.length-1];
 
-  const price=param.seriesPrices.get(candleSeries);
-  if(price===undefined) return;
-
-  // 🔥 미래 시간 생성
   const intervalSec=getIntervalSeconds(interval);
+
+  // 🔥 실제 미래 시간 생성
   const newTime=lastBar.time+(intervalSec*futureIndex);
 
   futurePoints.push({
@@ -77,11 +83,13 @@ chart.subscribeClick(param=>{
   });
 
   futureSeries.setData(futurePoints);
+
   futureIndex++;
 
   updateFuturePercent(price);
 });
 
+/* 타임프레임 초 변환 */
 function getIntervalSeconds(tf){
   if(tf.endsWith("m")) return parseInt(tf)*60;
   if(tf.endsWith("h")) return parseInt(tf)*3600;
@@ -190,4 +198,5 @@ loadData();
 }
 
 loadData();
+
 
