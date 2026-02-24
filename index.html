@@ -1,41 +1,68 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BTC MA Simulator</title>
+<meta charset="UTF-8">
+<title>Trading Chart</title>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
-  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
-  <link rel="stylesheet" href="style.css" />
+<style>
+body {
+  margin: 0;
+  background: #0B0E11;
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: #0B0E11;
+}
+
+.binance-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #2B3139;
+  background: #1E2329;
+  color: #848E9C;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.binance-btn.active {
+  color: #000;
+  font-weight: 600;
+}
+
+#chart {
+  width: 100%;
+  height: calc(100vh - 120px);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+</style>
 </head>
+
 <body>
 
-  <div class="topbar">
-    <!-- Timeframe -->
-    <button onclick="changeInterval('1m')">1M</button>
-    <button onclick="changeInterval('5m')">5M</button>
-    <button onclick="changeInterval('15m')">15M</button>
-    <button onclick="changeInterval('1h')">1H</button>
-    <button onclick="changeInterval('4h')">4H</button>
-    <button onclick="changeInterval('1d')">1D</button>
+<div class="controls">
 
-    <!-- Drawing -->
-    <button onclick="toggleDrawing()" id="drawBtn">Draw OFF</button>
-    <button onclick="clearFuture()">미래봉 삭제</button>
+<button class="binance-btn" id="drawBtn" onclick="toggleDrawing()">Draw OFF</button>
+<button class="binance-btn" onclick="clearFuture()">미래봉 삭제</button>
 
-    <!-- MA -->
-    <button onclick="toggleMA(7)">MA7</button>
-    <button onclick="toggleMA(15)">MA15</button>
-    <button onclick="toggleMA(60)">MA60</button>
-    <button onclick="toggleMA(100)">MA100</button>
-    <button onclick="toggleMA(200)">MA200</button>
-  </div>
+<button class="binance-btn" onclick="toggleMA(7)">MA7</button>
+<button class="binance-btn" onclick="toggleMA(15)">MA15</button>
+<button class="binance-btn" onclick="toggleMA(60)">MA60</button>
+<button class="binance-btn" onclick="toggleMA(100)">MA100</button>
+<button class="binance-btn" onclick="toggleMA(200)">MA200</button>
 
-  <div id="chart-container">
-    <div id="chart"></div>
-    <div id="overlay"></div>
-  </div>
+</div>
 
-  <script src="app.js"></script>
+<div id="chart"></div>
+
+<script src="app.js"></script>
+
 </body>
 </html>
