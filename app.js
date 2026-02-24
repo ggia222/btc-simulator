@@ -44,6 +44,17 @@ document.getElementById("ma"+p+"Btn").style.color=maColors[p];
 });
 
 let dataCache=[];
+let futurePoints=[];
+let drawing=false;
+let futureIndex=1;
+
+/* ⭐ 이게 반드시 필요 */
+const futureSeries = chart.addLineSeries({
+  color:"#AAAAAA",
+  lineWidth:2,
+  priceLineVisible:false,
+  lastValueVisible:false
+});
 /* ================= 미래봉 완전 안정판 ================= */
 
 let drawing=false;
@@ -199,6 +210,7 @@ loadData();
 }
 
 loadData();
+
 
 
 
