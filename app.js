@@ -123,7 +123,12 @@ maState[period]=!maState[period];
 updateAllMA();
 }
 
-/* ================= 미래봉 ================= */
+/* ================= 미래봉 수정판 ================= */
+
+let drawing=false;
+let futurePoints=[];
+let lastFutureTime=null;
+let isDragging=false;
 
 function toggleDraw(){
 
@@ -143,16 +148,13 @@ btn.innerText="미래봉 ON";
 btn.classList.remove("active");
 btn.innerText="미래봉 OFF";
 }
-}
 
-function clearFuture(){
 futurePoints=[];
 futureSeries.setData([]);
-futureIndex=1;
-document.getElementById("futurePercent").innerText="";
+lastFutureTime=null;
 }
 
-/* 🔥 모바일 드래그 방식 */
+/* 드래그 시작 */
 chart.subscribeCrosshairMove(param=>{
 
 if(!drawing) return;
@@ -162,18 +164,28 @@ if(!dataCache.length) return;
 const price=candleSeries.coordinateToPrice(param.point.y);
 if(price==null) return;
 
-const lastBar=dataCache[dataCache.length-1];
 const intervalSec=getIntervalSeconds(interval);
-const newTime=lastBar.time+(intervalSec*futureIndex);
+
+/* 🔥 첫 미래봉이면 */
+if(lastFutureTime===null){
+lastFutureTime=dataCache[dataCache.length-1].time + intervalSec;
+}else{
+/* 🔥 그 다음 봉 */
+lastFutureTime += intervalSec;
+}
+
+/* 🔥 중복 방지 */
+if(futurePoints.length>0){
+const last=futurePoints[futurePoints.length-1];
+if(last.time===lastFutureTime) return;
+}
 
 futurePoints.push({
-time:newTime,
+time:lastFutureTime,
 value:price
 });
 
 futureSeries.setData(futurePoints);
-
-futureIndex++;
 
 updateFuturePercent(price);
 });
@@ -221,3 +233,4 @@ btn.innerText="모바일 전용";
 
 loadData();
 };
+
