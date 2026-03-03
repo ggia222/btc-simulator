@@ -10,16 +10,10 @@ let interval = "1m";
 const chart = LightweightCharts.createChart(
   document.getElementById("chart"),
   {
-    layout: {
-      background: { color: "#0B0E11" },
-      textColor: "#848E9C"
-    },
-    grid: {
-      vertLines: { color: "#1E2329" },
-      horzLines: { color: "#1E2329" }
-    },
-    rightPriceScale: { borderColor: "#2B3139" },
-    timeScale: { timeVisible: true }
+    layout:{ background:{color:"#0B0E11"}, textColor:"#848E9C"},
+    grid:{ vertLines:{color:"#1E2329"}, horzLines:{color:"#1E2329"}},
+    rightPriceScale:{ borderColor:"#2B3139"},
+    timeScale:{ timeVisible:true }
   }
 );
 
@@ -27,20 +21,13 @@ const candleSeries = chart.addCandlestickSeries();
 
 /* ================= MA ================= */
 
-const maPeriods = [7,15,60,100,200];
-const maColors = {
-  7:"#FCD535",
-  15:"#FF00FF",
-  60:"#00C087",
-  100:"#2962FF",
-  200:"#FF4D4F"
-};
-
-const maSeries = {};
-const maState = {7:true,15:true,60:true,100:true,200:true};
+const maPeriods=[7,15,60,100,200];
+const maColors={7:"#FCD535",15:"#FF00FF",60:"#00C087",100:"#2962FF",200:"#FF4D4F"};
+const maSeries={};
+const maState={7:true,15:true,60:true,100:true,200:true};
 
 maPeriods.forEach(p=>{
-  maSeries[p] = chart.addLineSeries({
+  maSeries[p]=chart.addLineSeries({
     color:maColors[p],
     lineWidth:2,
     priceLineVisible:false,
@@ -51,11 +38,12 @@ maPeriods.forEach(p=>{
 /* ================= 상태 ================= */
 
 let dataCache=[];
-let drawing=false;
 let futurePoints=[];
-let lastFutureTime=null;
+let drawing=false;
+let startX=null;
+let baseFutureTime=null;
 
-const futureSeries = chart.addLineSeries({
+const futureSeries=chart.addLineSeries({
   color:"#AAAAAA",
   lineWidth:2,
   lineStyle:LightweightCharts.LineStyle.Dotted,
@@ -66,14 +54,12 @@ const futureSeries = chart.addLineSeries({
 /* ================= 데이터 로드 ================= */
 
 async function loadData(){
-
-  const res = await fetch(
+  const res=await fetch(
     `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
   );
+  const raw=await res.json();
 
-  const raw = await res.json();
-
-  dataCache = raw.map(d=>({
+  dataCache=raw.map(d=>({
     time:d[0]/1000,
     open:+d[1],
     high:+d[2],
@@ -86,7 +72,7 @@ async function loadData(){
   chart.timeScale().fitContent();
 }
 
-/* ================= MA 계산 ================= */
+/* ================= MA ================= */
 
 function calcMA(data,period){
   let result=[];
@@ -95,12 +81,8 @@ function calcMA(data,period){
   for(let i=0;i<data.length;i++){
     sum+=data[i].close;
     if(i>=period) sum-=data[i-period].close;
-
     if(i>=period-1){
-      result.push({
-        time:data[i].time,
-        value:sum/period
-      });
+      result.push({time:data[i].time,value:sum/period});
     }
   }
   return result;
@@ -108,7 +90,7 @@ function calcMA(data,period){
 
 function updateAllMA(){
 
-  const combined = [...dataCache];
+  const combined=[...dataCache];
 
   futurePoints.forEach(p=>{
     combined.push({
@@ -137,59 +119,64 @@ function toggleMA(p){
 /* ================= 미래봉 ================= */
 
 function toggleDraw(){
-
   if(!isMobile){
     alert("모바일 전용 기능입니다.");
     return;
   }
-
   drawing=!drawing;
-
-  const btn=document.getElementById("futureBtn");
-
-  if(drawing){
-    btn.classList.add("active");
-    btn.innerText="미래봉 ON";
-  }else{
-    btn.classList.remove("active");
-    btn.innerText="미래봉 OFF";
-  }
 }
 
-/* ================= 터치 이벤트 ================= */
+/* ================= 터치 로직 ================= */
 
-const chartEl = document.getElementById("chart");
+const chartEl=document.getElementById("chart");
 
-chartEl.addEventListener("touchmove", e=>{
-
+chartEl.addEventListener("touchstart",e=>{
   if(!drawing) return;
-  if(!dataCache.length) return;
 
-  const rect = chartEl.getBoundingClientRect();
+  const rect=chartEl.getBoundingClientRect();
+  startX=e.touches[0].clientX-rect.left;
 
-  const touch = e.touches[0];
+  baseFutureTime=dataCache[dataCache.length-1].time;
+  futurePoints=[];
+  futureSeries.setData([]);
+});
 
-  const x = touch.clientX - rect.left;
-  const y = touch.clientY - rect.top;
+chartEl.addEventListener("touchmove",e=>{
+  if(!drawing) return;
+  if(startX===null) return;
 
-  const price = candleSeries.coordinateToPrice(y);
+  const rect=chartEl.getBoundingClientRect();
+  const x=e.touches[0].clientX-rect.left;
+  const y=e.touches[0].clientY-rect.top;
+
+  const price=candleSeries.coordinateToPrice(y);
   if(price==null) return;
 
-  const intervalSec = getIntervalSeconds(interval);
+  const intervalSec=getIntervalSeconds(interval);
 
-  if(lastFutureTime===null){
-    lastFutureTime = dataCache[dataCache.length-1].time + intervalSec;
-  }else{
-    lastFutureTime += intervalSec;
+  // 이동 거리 기반으로 몇 칸 이동했는지 계산
+  const distance=x-startX;
+  const barWidth=8; // 대략적인 봉 너비
+
+  const barsMoved=Math.floor(distance/barWidth);
+
+  if(barsMoved<=0) return;
+
+  futurePoints=[];
+
+  for(let i=1;i<=barsMoved;i++){
+    futurePoints.push({
+      time:baseFutureTime+(intervalSec*i),
+      value:price
+    });
   }
-
-  futurePoints.push({
-    time:lastFutureTime,
-    value:price
-  });
 
   futureSeries.setData(futurePoints);
   updateAllMA();
+});
+
+chartEl.addEventListener("touchend",()=>{
+  startX=null;
 });
 
 /* ================= 유틸 ================= */
