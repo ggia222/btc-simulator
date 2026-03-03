@@ -1,148 +1,155 @@
+/* ================= 기본 설정 ================= */
+
+let currentSymbol = "BTCUSDT";
+let interval = "1m";
+
 const chart = LightweightCharts.createChart(
   document.getElementById("chart"),
   {
-    layout: { background: { color: "#111" }, textColor: "#DDD" },
-    grid: { vertLines: { color: "#222" }, horzLines: { color: "#222" } },
-    rightPriceScale: { borderColor: "#444" },
-    timeScale: { borderColor: "#444" },
+    layout:{ background:{color:"#0B0E11"}, textColor:"#848E9C"},
+    grid:{ vertLines:{color:"#1E2329"}, horzLines:{color:"#1E2329"}},
+    rightPriceScale:{ borderColor:"#2B3139"},
+    timeScale:{
+      timeVisible:true,
+      secondsVisible:false,
+      rightBarStaysOnScroll:true
+    }
   }
 );
 
 const candleSeries = chart.addCandlestickSeries();
-const maSeries = chart.addLineSeries({ color: "orange", lineWidth: 2 });
 
-let originalData = [];
-let futureData = [];
-let interval = "1h";
+/* ================= 상태 변수 ================= */
 
-let isTouching = false;
-let startPrice = null;
-let previewCandle = null;
+let dataCache = [];
 
-async function loadData() {
-  const res = await fetch(
-    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=200`
-  );
-  const data = await res.json();
+let drawing = false;
+let futurePoints = [];
+let futureIndex = 1;
 
-  originalData = data.map(d => ({
-    time: d[0] / 1000,
-    open: parseFloat(d[1]),
-    high: parseFloat(d[2]),
-    low: parseFloat(d[3]),
-    close: parseFloat(d[4]),
-  }));
+/* 미래 라인 */
+const futureSeries = chart.addLineSeries({
+  color:"#AAAAAA",
+  lineWidth:2,
+  priceLineVisible:false,
+  lastValueVisible:false
+});
 
-  candleSeries.setData(originalData);
-  futureData = [];
-  updateMA();
+/* ================= 데이터 로드 ================= */
 
-  chart.timeScale().fitContent();
-  chart.timeScale().scrollToRealTime();
-}
+async function loadData(){
+  try{
+    const res = await fetch(
+      `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=300`
+    );
 
-function calculateMA(data, period) {
-  const result = [];
-  for (let i = 0; i < data.length; i++) {
-    if (i < period - 1) continue;
-    let sum = 0;
-    for (let j = 0; j < period; j++) {
-      sum += data[i - j].close;
-    }
-    result.push({ time: data[i].time, value: sum / period });
+    const raw = await res.json();
+
+    dataCache = raw.map(d => ({
+      time: d[0] / 1000,
+      open: +d[1],
+      high: +d[2],
+      low: +d[3],
+      close: +d[4],
+    }));
+
+    candleSeries.setData(dataCache);
+
+    /* 오른쪽 여백 확보 (미래 보이게) */
+    chart.timeScale().applyOptions({
+      rightBarStaysOnScroll:true,
+      rightBarOffset:20
+    });
+
+    chart.timeScale().fitContent();
+
+  }catch(e){
+    console.error("loadData error:", e);
   }
-  return result;
 }
 
-function updateMA() {
-  const combined = [...originalData, ...futureData];
-  maSeries.setData(calculateMA(combined, 20));
+/* ================= 버튼 함수 ================= */
+
+function toggleDraw(){
+  drawing = !drawing;
+  console.log("미래봉 상태:", drawing);
 }
 
-function changeInterval(newInterval) {
-  interval = newInterval;
-  futureData = [];
+function clearFuture(){
+  futurePoints = [];
+  futureSeries.setData([]);
+  futureIndex = 1;
+  document.getElementById("futurePercent").innerText = "";
+}
+
+/* ================= 클릭 이벤트 ================= */
+
+chart.subscribeClick(param => {
+
+  if(!drawing) return;
+  if(!param.point) return;
+  if(!dataCache.length) return;
+
+  /* Y좌표 → 가격 변환 */
+  const price = candleSeries.coordinateToPrice(param.point.y);
+  if(price === null || price === undefined) return;
+
+  const lastBar = dataCache[dataCache.length - 1];
+
+  /* 타임프레임 초 계산 */
+  const intervalSec = getIntervalSeconds(interval);
+
+  /* 미래 시간 생성 */
+  const newTime = lastBar.time + (intervalSec * futureIndex);
+
+  futurePoints.push({
+    time:newTime,
+    value:price
+  });
+
+  futureSeries.setData(futurePoints);
+
+  futureIndex++;
+
+  updateFuturePercent(price);
+});
+
+/* ================= 퍼센트 계산 ================= */
+
+function updateFuturePercent(price){
+  if(!dataCache.length) return;
+
+  const lastClose = dataCache[dataCache.length-1].close;
+  const diff = ((price-lastClose)/lastClose)*100;
+
+  const el = document.getElementById("futurePercent");
+  if(!el) return;
+
+  el.innerText = diff.toFixed(2)+"%";
+  el.style.color = diff >= 0 ? "#0ECB81" : "#F6465D";
+}
+
+/* ================= 타임프레임 계산 ================= */
+
+function getIntervalSeconds(tf){
+  if(tf.endsWith("m")) return parseInt(tf)*60;
+  if(tf.endsWith("h")) return parseInt(tf)*3600;
+  if(tf.endsWith("d")) return parseInt(tf)*86400;
+  return 60;
+}
+
+/* ================= 심볼 / TF 변경 ================= */
+
+function changeSymbol(symbol){
+  currentSymbol = symbol;
   loadData();
 }
 
-function getIntervalSeconds() {
-  if (interval === "1m") return 60;
-  if (interval === "5m") return 300;
-  if (interval === "15m") return 900;
-  if (interval === "1h") return 3600;
-  if (interval === "4h") return 14400;
-  if (interval === "1d") return 86400;
+function changeTF(tf){
+  interval = tf;
+  loadData();
 }
 
-function createFutureCandle(openPrice, closePrice) {
-  const last = [...originalData, ...futureData].slice(-1)[0];
-  const nextTime = last.time + getIntervalSeconds();
-
-  const high = Math.max(openPrice, closePrice);
-  const low = Math.min(openPrice, closePrice);
-
-  const candle = {
-    time: nextTime,
-    open: openPrice,
-    high: high,
-    low: low,
-    close: closePrice,
-  };
-
-  futureData.push(candle);
-  candleSeries.update(candle);
-  updateMA();
-}
-
-function drawPreviewCandle(openPrice, closePrice) {
-  const last = [...originalData, ...futureData].slice(-1)[0];
-  const nextTime = last.time + getIntervalSeconds();
-
-  const high = Math.max(openPrice, closePrice);
-  const low = Math.min(openPrice, closePrice);
-
-  previewCandle = {
-    time: nextTime,
-    open: openPrice,
-    high: high,
-    low: low,
-    close: closePrice,
-  };
-
-  candleSeries.update(previewCandle);
-}
-
-/* ✅ 모바일 터치 이벤트 */
-
-const chartElement = document.getElementById("chart");
-
-chartElement.addEventListener("touchstart", (e) => {
-  isTouching = true;
-
-  const rect = chartElement.getBoundingClientRect();
-  const y = e.touches[0].clientY - rect.top;
-  startPrice = candleSeries.coordinateToPrice(y);
-});
-
-chartElement.addEventListener("touchmove", (e) => {
-  if (!isTouching) return;
-
-  const rect = chartElement.getBoundingClientRect();
-  const y = e.touches[0].clientY - rect.top;
-  const currentPrice = candleSeries.coordinateToPrice(y);
-
-  drawPreviewCandle(startPrice, currentPrice);
-});
-
-chartElement.addEventListener("touchend", () => {
-  if (!isTouching) return;
-
-  isTouching = false;
-
-  if (previewCandle) {
-    createFutureCandle(previewCandle.open, previewCandle.close);
-    previewCandle = null;
-  }
-});
+/* ================= 최초 실행 ================= */
 
 loadData();
