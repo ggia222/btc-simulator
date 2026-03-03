@@ -1,155 +1,148 @@
-/* ================= 기본 설정 ================= */
-
-let currentSymbol = "BTCUSDT";
-let interval = "1m";
-
 const chart = LightweightCharts.createChart(
   document.getElementById("chart"),
   {
-    layout:{ background:{color:"#0B0E11"}, textColor:"#848E9C"},
-    grid:{ vertLines:{color:"#1E2329"}, horzLines:{color:"#1E2329"}},
-    rightPriceScale:{ borderColor:"#2B3139"},
-    timeScale:{
-      timeVisible:true,
-      secondsVisible:false,
-      rightBarStaysOnScroll:true
-    }
+    layout: { background: { color: "#111" }, textColor: "#DDD" },
+    grid: { vertLines: { color: "#222" }, horzLines: { color: "#222" } },
+    rightPriceScale: { borderColor: "#444" },
+    timeScale: { borderColor: "#444" },
   }
 );
 
 const candleSeries = chart.addCandlestickSeries();
+const maSeries = chart.addLineSeries({ color: "orange", lineWidth: 2 });
 
-/* ================= 상태 변수 ================= */
+let originalData = [];
+let futureData = [];
+let interval = "1h";
 
-let dataCache = [];
+let isTouching = false;
+let startPrice = null;
+let previewCandle = null;
 
-let drawing = false;
-let futurePoints = [];
-let futureIndex = 1;
+async function loadData() {
+  const res = await fetch(
+    `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=200`
+  );
+  const data = await res.json();
 
-/* 미래 라인 */
-const futureSeries = chart.addLineSeries({
-  color:"#AAAAAA",
-  lineWidth:2,
-  priceLineVisible:false,
-  lastValueVisible:false
-});
+  originalData = data.map(d => ({
+    time: d[0] / 1000,
+    open: parseFloat(d[1]),
+    high: parseFloat(d[2]),
+    low: parseFloat(d[3]),
+    close: parseFloat(d[4]),
+  }));
 
-/* ================= 데이터 로드 ================= */
+  candleSeries.setData(originalData);
+  futureData = [];
+  updateMA();
 
-async function loadData(){
-  try{
-    const res = await fetch(
-      `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=300`
-    );
+  chart.timeScale().fitContent();
+  chart.timeScale().scrollToRealTime();
+}
 
-    const raw = await res.json();
-
-    dataCache = raw.map(d => ({
-      time: d[0] / 1000,
-      open: +d[1],
-      high: +d[2],
-      low: +d[3],
-      close: +d[4],
-    }));
-
-    candleSeries.setData(dataCache);
-
-    /* 오른쪽 여백 확보 (미래 보이게) */
-    chart.timeScale().applyOptions({
-      rightBarStaysOnScroll:true,
-      rightBarOffset:20
-    });
-
-    chart.timeScale().fitContent();
-
-  }catch(e){
-    console.error("loadData error:", e);
+function calculateMA(data, period) {
+  const result = [];
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) continue;
+    let sum = 0;
+    for (let j = 0; j < period; j++) {
+      sum += data[i - j].close;
+    }
+    result.push({ time: data[i].time, value: sum / period });
   }
+  return result;
 }
 
-/* ================= 버튼 함수 ================= */
-
-function toggleDraw(){
-  drawing = !drawing;
-  console.log("미래봉 상태:", drawing);
+function updateMA() {
+  const combined = [...originalData, ...futureData];
+  maSeries.setData(calculateMA(combined, 20));
 }
 
-function clearFuture(){
-  futurePoints = [];
-  futureSeries.setData([]);
-  futureIndex = 1;
-  document.getElementById("futurePercent").innerText = "";
+function changeInterval(newInterval) {
+  interval = newInterval;
+  futureData = [];
+  loadData();
 }
 
-/* ================= 클릭 이벤트 ================= */
+function getIntervalSeconds() {
+  if (interval === "1m") return 60;
+  if (interval === "5m") return 300;
+  if (interval === "15m") return 900;
+  if (interval === "1h") return 3600;
+  if (interval === "4h") return 14400;
+  if (interval === "1d") return 86400;
+}
 
-chart.subscribeClick(param => {
+function createFutureCandle(openPrice, closePrice) {
+  const last = [...originalData, ...futureData].slice(-1)[0];
+  const nextTime = last.time + getIntervalSeconds();
 
-  if(!drawing) return;
-  if(!param.point) return;
-  if(!dataCache.length) return;
+  const high = Math.max(openPrice, closePrice);
+  const low = Math.min(openPrice, closePrice);
 
-  /* Y좌표 → 가격 변환 */
-  const price = candleSeries.coordinateToPrice(param.point.y);
-  if(price === null || price === undefined) return;
+  const candle = {
+    time: nextTime,
+    open: openPrice,
+    high: high,
+    low: low,
+    close: closePrice,
+  };
 
-  const lastBar = dataCache[dataCache.length - 1];
+  futureData.push(candle);
+  candleSeries.update(candle);
+  updateMA();
+}
 
-  /* 타임프레임 초 계산 */
-  const intervalSec = getIntervalSeconds(interval);
+function drawPreviewCandle(openPrice, closePrice) {
+  const last = [...originalData, ...futureData].slice(-1)[0];
+  const nextTime = last.time + getIntervalSeconds();
 
-  /* 미래 시간 생성 */
-  const newTime = lastBar.time + (intervalSec * futureIndex);
+  const high = Math.max(openPrice, closePrice);
+  const low = Math.min(openPrice, closePrice);
 
-  futurePoints.push({
-    time:newTime,
-    value:price
-  });
+  previewCandle = {
+    time: nextTime,
+    open: openPrice,
+    high: high,
+    low: low,
+    close: closePrice,
+  };
 
-  futureSeries.setData(futurePoints);
+  candleSeries.update(previewCandle);
+}
 
-  futureIndex++;
+/* ✅ 모바일 터치 이벤트 */
 
-  updateFuturePercent(price);
+const chartElement = document.getElementById("chart");
+
+chartElement.addEventListener("touchstart", (e) => {
+  isTouching = true;
+
+  const rect = chartElement.getBoundingClientRect();
+  const y = e.touches[0].clientY - rect.top;
+  startPrice = candleSeries.coordinateToPrice(y);
 });
 
-/* ================= 퍼센트 계산 ================= */
+chartElement.addEventListener("touchmove", (e) => {
+  if (!isTouching) return;
 
-function updateFuturePercent(price){
-  if(!dataCache.length) return;
+  const rect = chartElement.getBoundingClientRect();
+  const y = e.touches[0].clientY - rect.top;
+  const currentPrice = candleSeries.coordinateToPrice(y);
 
-  const lastClose = dataCache[dataCache.length-1].close;
-  const diff = ((price-lastClose)/lastClose)*100;
+  drawPreviewCandle(startPrice, currentPrice);
+});
 
-  const el = document.getElementById("futurePercent");
-  if(!el) return;
+chartElement.addEventListener("touchend", () => {
+  if (!isTouching) return;
 
-  el.innerText = diff.toFixed(2)+"%";
-  el.style.color = diff >= 0 ? "#0ECB81" : "#F6465D";
-}
+  isTouching = false;
 
-/* ================= 타임프레임 계산 ================= */
-
-function getIntervalSeconds(tf){
-  if(tf.endsWith("m")) return parseInt(tf)*60;
-  if(tf.endsWith("h")) return parseInt(tf)*3600;
-  if(tf.endsWith("d")) return parseInt(tf)*86400;
-  return 60;
-}
-
-/* ================= 심볼 / TF 변경 ================= */
-
-function changeSymbol(symbol){
-  currentSymbol = symbol;
-  loadData();
-}
-
-function changeTF(tf){
-  interval = tf;
-  loadData();
-}
-
-/* ================= 최초 실행 ================= */
+  if (previewCandle) {
+    createFutureCandle(previewCandle.open, previewCandle.close);
+    previewCandle = null;
+  }
+});
 
 loadData();
