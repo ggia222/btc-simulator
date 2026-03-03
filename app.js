@@ -143,59 +143,76 @@ function toggleDraw(){
     alert("toggleDraw 에러: " + e.message);
   }
 }
-/* ================= 터치 로직 ================= */
+/* ================= 안정 미래봉 ================= */
 
-const chartEl=document.getElementById("chart");
+let futurePoints = [];
+let drawing = false;
+let nextFutureTime = null;
 
-chartEl.addEventListener("touchstart",e=>{
-  if(!drawing) return;
-
-  const rect=chartEl.getBoundingClientRect();
-  startX=e.touches[0].clientX-rect.left;
-
-  baseFutureTime=dataCache[dataCache.length-1].time;
-  futurePoints=[];
-  futureSeries.setData([]);
+const futureSeries = chart.addLineSeries({
+  color:"#AAAAAA",
+  lineWidth:2,
+  lineStyle:LightweightCharts.LineStyle.Dotted,
+  priceLineVisible:false,
+  lastValueVisible:false
 });
 
-chartEl.addEventListener("touchmove",e=>{
-  if(!drawing) return;
-  if(startX===null) return;
+function toggleDraw(){
+  drawing = !drawing;
 
-  const rect=chartEl.getBoundingClientRect();
-  const x=e.touches[0].clientX-rect.left;
-  const y=e.touches[0].clientY-rect.top;
+  const btn = document.getElementById("futureBtn");
 
-  const price=candleSeries.coordinateToPrice(y);
-  if(price==null) return;
+  if(drawing){
+    btn.innerText = "미래봉 ON";
+    btn.classList.add("active");
 
-  const intervalSec=getIntervalSeconds(interval);
+    nextFutureTime = dataCache[dataCache.length-1].time;
+    futurePoints = [];
+    futureSeries.setData([]);
 
-  // 이동 거리 기반으로 몇 칸 이동했는지 계산
-  const distance=x-startX;
-  const barWidth=8; // 대략적인 봉 너비
-
-  const barsMoved=Math.floor(distance/barWidth);
-
-  if(barsMoved<=0) return;
-
-  futurePoints=[];
-
-  for(let i=1;i<=barsMoved;i++){
-    futurePoints.push({
-      time:baseFutureTime+(intervalSec*i),
-      value:price
-    });
+  } else {
+    btn.innerText = "미래봉 OFF";
+    btn.classList.remove("active");
   }
+}
+
+const chartEl = document.getElementById("chart");
+
+chartEl.addEventListener("touchmove", function(e){
+
+  if(!drawing) return;
+  if(!dataCache.length) return;
+
+  e.preventDefault(); // 스크롤 방지
+
+  const rect = chartEl.getBoundingClientRect();
+  const y = e.touches[0].clientY - rect.top;
+
+  const price = candleSeries.coordinateToPrice(y);
+  if(price == null) return;
+
+  const intervalSec = getIntervalSeconds(interval);
+
+  // 다음 시간 계산
+  const newTime = nextFutureTime + intervalSec;
+
+  // 이미 마지막 점과 동일 시간 생성됐으면 무시
+  if(futurePoints.length > 0 &&
+     futurePoints[futurePoints.length-1].time === newTime){
+       return;
+  }
+
+  futurePoints.push({
+    time:newTime,
+    value:price
+  });
+
+  nextFutureTime = newTime;
 
   futureSeries.setData(futurePoints);
   updateAllMA();
-});
 
-chartEl.addEventListener("touchend",()=>{
-  startX=null;
-});
-
+}, { passive:false });
 /* ================= 유틸 ================= */
 
 function getIntervalSeconds(tf){
@@ -220,4 +237,5 @@ function changeTF(tf){
 window.onload=()=>{
   loadData();
 };
+
 
