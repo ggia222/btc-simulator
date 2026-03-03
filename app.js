@@ -4,167 +4,220 @@ function isMobile(){
   return /Mobi|Android|iPhone/i.test(navigator.userAgent);
 }
 
-let isMobileDevice = isMobile();
+const isMobileDevice = isMobile();
 
-/* ================= 기본 설정 ================= */
+/* ================= 차트 생성 ================= */
 
-let currentSymbol = "BTCUSDT";
-let interval = "1m";
+let currentSymbol="BTCUSDT";
+let interval="1m";
 
 const chart = LightweightCharts.createChart(
-  document.getElementById("chart"),
-  {
-    layout:{ background:{color:"#0B0E11"}, textColor:"#848E9C"},
-    grid:{ vertLines:{color:"#1E2329"}, horzLines:{color:"#1E2329"}},
-    rightPriceScale:{ borderColor:"#2B3139"},
-    timeScale:{
-      timeVisible:true,
-      rightBarStaysOnScroll:true
-    }
-  }
+document.getElementById("chart"),
+{
+layout:{background:{color:"#0B0E11"},textColor:"#848E9C"},
+grid:{vertLines:{color:"#1E2329"},horzLines:{color:"#1E2329"}},
+rightPriceScale:{borderColor:"#2B3139"},
+timeScale:{
+  timeVisible:true,
+  rightBarStaysOnScroll:true
+}
+}
 );
 
 const candleSeries = chart.addCandlestickSeries();
 
+/* ================= MA ================= */
+
+const maColors={
+7:"#FCD535",
+15:"#FF00FF",
+60:"#00C087",
+100:"#2962FF",
+200:"#FF4D4F"
+};
+
+const maSeries={};
+const maState={7:true,15:true,60:true,100:true,200:true};
+
+Object.keys(maColors).forEach(p=>{
+maSeries[p]=chart.addLineSeries({
+  color:maColors[p],
+  lineWidth:p==200?3:2,
+  priceLineVisible:false,
+  lastValueVisible:false
+});
+});
+
 /* ================= 상태 ================= */
 
-let dataCache = [];
-let drawing = false;
-let futurePoints = [];
-let futureIndex = 1;
+let dataCache=[];
+let drawing=false;
+let futurePoints=[];
+let futureIndex=1;
 
+/* 미래 점 시리즈 */
 const futureSeries = chart.addLineSeries({
   color:"#AAAAAA",
   lineWidth:2,
+  lineStyle:LightweightCharts.LineStyle.Dotted,
   priceLineVisible:false,
   lastValueVisible:false
 });
 
-/* ================= 데이터 로드 ================= */
+/* ================= 데이터 ================= */
 
 async function loadData(){
-  const res = await fetch(
-    `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=300`
-  );
-  const raw = await res.json();
+const res=await fetch(
+`https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
+);
 
-  dataCache = raw.map(d => ({
-    time: d[0]/1000,
-    open:+d[1],
-    high:+d[2],
-    low:+d[3],
-    close:+d[4],
-  }));
+const raw=await res.json();
 
-  candleSeries.setData(dataCache);
+dataCache=raw.map(d=>({
+time:d[0]/1000,
+open:+d[1],
+high:+d[2],
+low:+d[3],
+close:+d[4],
+}));
 
-  chart.timeScale().applyOptions({
-    rightBarOffset:20
-  });
+candleSeries.setData(dataCache);
+updateAllMA();
 
-  chart.timeScale().fitContent();
+chart.timeScale().applyOptions({rightBarOffset:20});
+chart.timeScale().fitContent();
+}
+
+/* ================= MA 계산 ================= */
+
+function calcMA(data,period){
+let result=[];
+let sum=0;
+
+for(let i=0;i<data.length;i++){
+sum+=data[i].close;
+if(i>=period) sum-=data[i-period].close;
+
+if(i>=period-1){
+result.push({
+time:data[i].time,
+value:sum/period
+});
+}
+}
+return result;
+}
+
+function updateAllMA(){
+Object.keys(maSeries).forEach(p=>{
+if(maState[p]){
+maSeries[p].setData(calcMA(dataCache,Number(p)));
+}else{
+maSeries[p].setData([]);
+}
+});
+}
+
+function toggleMA(period){
+maState[period]=!maState[period];
+updateAllMA();
 }
 
 /* ================= 미래봉 ================= */
 
 function toggleDraw(){
 
-  if(!isMobileDevice){
-    alert("미래봉 기능은 모바일에서만 사용 가능합니다.");
-    return;
-  }
+if(!isMobileDevice){
+alert("모바일에서만 사용 가능합니다.");
+return;
+}
 
-  drawing = !drawing;
+drawing=!drawing;
 
-  const btn = document.getElementById("futureBtn");
+const btn=document.getElementById("futureBtn");
 
-  if(drawing){
-    btn.classList.add("active");
-    btn.innerText = "미래봉 ON";
-  }else{
-    btn.classList.remove("active");
-    btn.innerText = "미래봉 OFF";
-  }
-
-  console.log("미래봉 상태:", drawing);
+if(drawing){
+btn.classList.add("active");
+btn.innerText="미래봉 ON";
+}else{
+btn.classList.remove("active");
+btn.innerText="미래봉 OFF";
+}
 }
 
 function clearFuture(){
-  futurePoints = [];
-  futureSeries.setData([]);
-  futureIndex = 1;
-  document.getElementById("futurePercent").innerText="";
+futurePoints=[];
+futureSeries.setData([]);
+futureIndex=1;
+document.getElementById("futurePercent").innerText="";
 }
 
-/* ================= 클릭 이벤트 ================= */
+/* 🔥 모바일 드래그 방식 */
+chart.subscribeCrosshairMove(param=>{
 
-chart.subscribeClick(param=>{
+if(!drawing) return;
+if(!param.point) return;
+if(!dataCache.length) return;
 
-  if(!drawing) return;
-  if(!param.point) return;
-  if(!dataCache.length) return;
+const price=candleSeries.coordinateToPrice(param.point.y);
+if(price==null) return;
 
-  const price = candleSeries.coordinateToPrice(param.point.y);
-  if(price == null) return;
+const lastBar=dataCache[dataCache.length-1];
+const intervalSec=getIntervalSeconds(interval);
+const newTime=lastBar.time+(intervalSec*futureIndex);
 
-  const lastBar = dataCache[dataCache.length-1];
-  const intervalSec = getIntervalSeconds(interval);
-  const newTime = lastBar.time + (intervalSec * futureIndex);
+futurePoints.push({
+time:newTime,
+value:price
+});
 
-  futurePoints.push({
-    time:newTime,
-    value:price
-  });
+futureSeries.setData(futurePoints);
 
-  futureSeries.setData(futurePoints);
-  futureIndex++;
+futureIndex++;
 
-  updateFuturePercent(price);
+updateFuturePercent(price);
 });
 
 /* ================= 퍼센트 ================= */
 
 function updateFuturePercent(price){
-  const lastClose = dataCache[dataCache.length-1].close;
-  const diff = ((price-lastClose)/lastClose)*100;
+const lastClose=dataCache[dataCache.length-1].close;
+const diff=((price-lastClose)/lastClose)*100;
 
-  const el = document.getElementById("futurePercent");
-  el.innerText = diff.toFixed(2)+"%";
-  el.style.color = diff>=0 ? "#0ECB81" : "#F6465D";
+const el=document.getElementById("futurePercent");
+el.innerText=diff.toFixed(2)+"%";
+el.style.color=diff>=0?"#0ECB81":"#F6465D";
 }
 
-/* ================= 타임프레임 계산 ================= */
+/* ================= 유틸 ================= */
 
 function getIntervalSeconds(tf){
-  if(tf.endsWith("m")) return parseInt(tf)*60;
-  if(tf.endsWith("h")) return parseInt(tf)*3600;
-  if(tf.endsWith("d")) return parseInt(tf)*86400;
-  return 60;
+if(tf.endsWith("m")) return parseInt(tf)*60;
+if(tf.endsWith("h")) return parseInt(tf)*3600;
+if(tf.endsWith("d")) return parseInt(tf)*86400;
+return 60;
 }
 
-/* ================= 변경 ================= */
-
 function changeSymbol(symbol){
-  currentSymbol = symbol;
-  loadData();
+currentSymbol=symbol;
+loadData();
 }
 
 function changeTF(tf){
-  interval = tf;
-  loadData();
+interval=tf;
+loadData();
 }
 
-/* ================= 초기 설정 ================= */
+/* ================= 초기 실행 ================= */
 
-window.onload = function(){
+window.onload=function(){
+const btn=document.getElementById("futureBtn");
 
-  const btn = document.getElementById("futureBtn");
+if(!isMobileDevice){
+btn.disabled=true;
+btn.style.opacity=0.4;
+btn.innerText="모바일 전용";
+}
 
-  if(!isMobileDevice){
-    btn.disabled = true;
-    btn.style.opacity = 0.4;
-    btn.innerText = "모바일 전용";
-  }
-
-  loadData();
+loadData();
 };
