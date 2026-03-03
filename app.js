@@ -1,8 +1,4 @@
-/* ================= 모바일 체크 ================= */
-
-const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-
-/* ================= 차트 생성 ================= */
+/* ================= 기본 설정 ================= */
 
 let currentSymbol = "BTCUSDT";
 let interval = "1m";
@@ -35,13 +31,11 @@ maPeriods.forEach(p=>{
   });
 });
 
-/* ================= 상태 ================= */
+/* ================= 미래봉 ================= */
 
-let dataCache=[];
 let futurePoints=[];
 let drawing=false;
-let startX=null;
-let baseFutureTime=null;
+let nextFutureTime=null;
 
 const futureSeries=chart.addLineSeries({
   color:"#AAAAAA",
@@ -51,12 +45,36 @@ const futureSeries=chart.addLineSeries({
   lastValueVisible:false
 });
 
-/* ================= 데이터 로드 ================= */
+function toggleDraw(){
+
+  drawing=!drawing;
+
+  const btn=document.getElementById("futureBtn");
+
+  if(drawing){
+    btn.innerText="미래봉 ON";
+    btn.classList.add("active");
+
+    nextFutureTime=dataCache[dataCache.length-1].time;
+    futurePoints=[];
+    futureSeries.setData([]);
+
+  }else{
+    btn.innerText="미래봉 OFF";
+    btn.classList.remove("active");
+  }
+}
+
+/* ================= 데이터 ================= */
+
+let dataCache=[];
 
 async function loadData(){
+
   const res=await fetch(
     `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
   );
+
   const raw=await res.json();
 
   dataCache=raw.map(d=>({
@@ -72,7 +90,7 @@ async function loadData(){
   chart.timeScale().fitContent();
 }
 
-/* ================= MA ================= */
+/* ================= MA 계산 ================= */
 
 function calcMA(data,period){
   let result=[];
@@ -81,6 +99,7 @@ function calcMA(data,period){
   for(let i=0;i<data.length;i++){
     sum+=data[i].close;
     if(i>=period) sum-=data[i-period].close;
+
     if(i>=period-1){
       result.push({time:data[i].time,value:sum/period});
     }
@@ -116,89 +135,29 @@ function toggleMA(p){
   updateAllMA();
 }
 
-/* ================= 미래봉 ================= */
+/* ================= 터치 미래봉 ================= */
 
-function toggleDraw(){
+const chartEl=document.getElementById("chart");
 
-  try {
-
-    drawing = !drawing;
-
-    const btn = document.getElementById("futureBtn");
-
-    if(!btn){
-      alert("futureBtn 못찾음");
-      return;
-    }
-
-    if(drawing){
-      btn.classList.add("active");
-      btn.innerText = "미래봉 ON";
-    } else {
-      btn.classList.remove("active");
-      btn.innerText = "미래봉 OFF";
-    }
-
-  } catch(e){
-    alert("toggleDraw 에러: " + e.message);
-  }
-}
-/* ================= 안정 미래봉 ================= */
-
-let futurePoints = [];
-let drawing = false;
-let nextFutureTime = null;
-
-const futureSeries = chart.addLineSeries({
-  color:"#AAAAAA",
-  lineWidth:2,
-  lineStyle:LightweightCharts.LineStyle.Dotted,
-  priceLineVisible:false,
-  lastValueVisible:false
-});
-
-function toggleDraw(){
-  drawing = !drawing;
-
-  const btn = document.getElementById("futureBtn");
-
-  if(drawing){
-    btn.innerText = "미래봉 ON";
-    btn.classList.add("active");
-
-    nextFutureTime = dataCache[dataCache.length-1].time;
-    futurePoints = [];
-    futureSeries.setData([]);
-
-  } else {
-    btn.innerText = "미래봉 OFF";
-    btn.classList.remove("active");
-  }
-}
-
-const chartEl = document.getElementById("chart");
-
-chartEl.addEventListener("touchmove", function(e){
+chartEl.addEventListener("touchmove",function(e){
 
   if(!drawing) return;
   if(!dataCache.length) return;
 
-  e.preventDefault(); // 스크롤 방지
+  e.preventDefault();
 
-  const rect = chartEl.getBoundingClientRect();
-  const y = e.touches[0].clientY - rect.top;
+  const rect=chartEl.getBoundingClientRect();
+  const y=e.touches[0].clientY-rect.top;
 
-  const price = candleSeries.coordinateToPrice(y);
-  if(price == null) return;
+  const price=candleSeries.coordinateToPrice(y);
+  if(price==null) return;
 
-  const intervalSec = getIntervalSeconds(interval);
+  const intervalSec=getIntervalSeconds(interval);
 
-  // 다음 시간 계산
-  const newTime = nextFutureTime + intervalSec;
+  const newTime=nextFutureTime+intervalSec;
 
-  // 이미 마지막 점과 동일 시간 생성됐으면 무시
-  if(futurePoints.length > 0 &&
-     futurePoints[futurePoints.length-1].time === newTime){
+  if(futurePoints.length>0 &&
+     futurePoints[futurePoints.length-1].time===newTime){
        return;
   }
 
@@ -207,13 +166,14 @@ chartEl.addEventListener("touchmove", function(e){
     value:price
   });
 
-  nextFutureTime = newTime;
+  nextFutureTime=newTime;
 
   futureSeries.setData(futurePoints);
   updateAllMA();
 
-}, { passive:false });
-/* ================= 유틸 ================= */
+},{passive:false});
+
+/* ================= 기타 ================= */
 
 function getIntervalSeconds(tf){
   if(tf.endsWith("m")) return parseInt(tf)*60;
@@ -232,10 +192,6 @@ function changeTF(tf){
   loadData();
 }
 
-/* ================= 시작 ================= */
-
 window.onload=()=>{
   loadData();
 };
-
-
