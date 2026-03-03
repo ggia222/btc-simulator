@@ -18,13 +18,8 @@ const chart = LightweightCharts.createChart(
       vertLines: { color: "#1E2329" },
       horzLines: { color: "#1E2329" }
     },
-    rightPriceScale: {
-      borderColor: "#2B3139"
-    },
-    timeScale: {
-      timeVisible: true,
-      rightBarStaysOnScroll: true
-    }
+    rightPriceScale: { borderColor: "#2B3139" },
+    timeScale: { timeVisible: true }
   }
 );
 
@@ -32,23 +27,22 @@ const candleSeries = chart.addCandlestickSeries();
 
 /* ================= MA ================= */
 
-const maPeriods = [7, 15, 60, 100, 200];
-
+const maPeriods = [7,15,60,100,200];
 const maColors = {
-  7: "#FCD535",
-  15: "#FF00FF",
-  60: "#00C087",
-  100: "#2962FF",
-  200: "#FF4D4F"
+  7:"#FCD535",
+  15:"#FF00FF",
+  60:"#00C087",
+  100:"#2962FF",
+  200:"#FF4D4F"
 };
 
 const maSeries = {};
-const maState = { 7:true,15:true,60:true,100:true,200:true };
+const maState = {7:true,15:true,60:true,100:true,200:true};
 
 maPeriods.forEach(p=>{
   maSeries[p] = chart.addLineSeries({
-    color: maColors[p],
-    lineWidth: p == 200 ? 3 : 2,
+    color:maColors[p],
+    lineWidth:2,
     priceLineVisible:false,
     lastValueVisible:false
   });
@@ -56,10 +50,10 @@ maPeriods.forEach(p=>{
 
 /* ================= 상태 ================= */
 
-let dataCache = [];
-let drawing = false;
-let futurePoints = [];
-let lastFutureTime = null;
+let dataCache=[];
+let drawing=false;
+let futurePoints=[];
+let lastFutureTime=null;
 
 const futureSeries = chart.addLineSeries({
   color:"#AAAAAA",
@@ -72,30 +66,24 @@ const futureSeries = chart.addLineSeries({
 /* ================= 데이터 로드 ================= */
 
 async function loadData(){
-  try{
-    const res = await fetch(
-      `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
-    );
 
-    const raw = await res.json();
+  const res = await fetch(
+    `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
+  );
 
-    dataCache = raw.map(d=>({
-      time: d[0]/1000,
-      open:+d[1],
-      high:+d[2],
-      low:+d[3],
-      close:+d[4]
-    }));
+  const raw = await res.json();
 
-    candleSeries.setData(dataCache);
-    updateAllMA();
+  dataCache = raw.map(d=>({
+    time:d[0]/1000,
+    open:+d[1],
+    high:+d[2],
+    low:+d[3],
+    close:+d[4]
+  }));
 
-    chart.timeScale().applyOptions({ rightBarOffset:20 });
-    chart.timeScale().fitContent();
-
-  }catch(e){
-    console.error("loadData error:", e);
-  }
+  candleSeries.setData(dataCache);
+  updateAllMA();
+  chart.timeScale().fitContent();
 }
 
 /* ================= MA 계산 ================= */
@@ -119,17 +107,30 @@ function calcMA(data,period){
 }
 
 function updateAllMA(){
+
+  const combined = [...dataCache];
+
+  futurePoints.forEach(p=>{
+    combined.push({
+      time:p.time,
+      open:p.value,
+      high:p.value,
+      low:p.value,
+      close:p.value
+    });
+  });
+
   maPeriods.forEach(p=>{
     if(maState[p]){
-      maSeries[p].setData(calcMA(dataCache,p));
+      maSeries[p].setData(calcMA(combined,p));
     }else{
       maSeries[p].setData([]);
     }
   });
 }
 
-function toggleMA(period){
-  maState[period]=!maState[period];
+function toggleMA(p){
+  maState[p]=!maState[p];
   updateAllMA();
 }
 
@@ -138,13 +139,13 @@ function toggleMA(period){
 function toggleDraw(){
 
   if(!isMobile){
-    alert("모바일에서만 사용 가능합니다.");
+    alert("모바일 전용 기능입니다.");
     return;
   }
 
-  drawing = !drawing;
+  drawing=!drawing;
 
-  const btn = document.getElementById("futureBtn");
+  const btn=document.getElementById("futureBtn");
 
   if(drawing){
     btn.classList.add("active");
@@ -153,21 +154,25 @@ function toggleDraw(){
     btn.classList.remove("active");
     btn.innerText="미래봉 OFF";
   }
-
-  futurePoints=[];
-  futureSeries.setData([]);
-  lastFutureTime=null;
 }
 
-/* 모바일 드래그 */
+/* ================= 터치 이벤트 ================= */
 
-chart.subscribeCrosshairMove(param=>{
+const chartEl = document.getElementById("chart");
+
+chartEl.addEventListener("touchmove", e=>{
 
   if(!drawing) return;
-  if(!param.point) return;
   if(!dataCache.length) return;
 
-  const price = candleSeries.coordinateToPrice(param.point.y);
+  const rect = chartEl.getBoundingClientRect();
+
+  const touch = e.touches[0];
+
+  const x = touch.clientX - rect.left;
+  const y = touch.clientY - rect.top;
+
+  const price = candleSeries.coordinateToPrice(y);
   if(price==null) return;
 
   const intervalSec = getIntervalSeconds(interval);
@@ -178,32 +183,14 @@ chart.subscribeCrosshairMove(param=>{
     lastFutureTime += intervalSec;
   }
 
-  if(futurePoints.length>0 &&
-     futurePoints[futurePoints.length-1].time===lastFutureTime){
-       return;
-  }
-
   futurePoints.push({
     time:lastFutureTime,
     value:price
   });
 
   futureSeries.setData(futurePoints);
-  updateFuturePercent(price);
+  updateAllMA();
 });
-
-/* ================= 퍼센트 ================= */
-
-function updateFuturePercent(price){
-  const lastClose = dataCache[dataCache.length-1].close;
-  const diff = ((price-lastClose)/lastClose)*100;
-
-  const el = document.getElementById("futurePercent");
-  if(!el) return;
-
-  el.innerText = diff.toFixed(2)+"%";
-  el.style.color = diff>=0 ? "#0ECB81" : "#F6465D";
-}
 
 /* ================= 유틸 ================= */
 
@@ -214,27 +201,18 @@ function getIntervalSeconds(tf){
   return 60;
 }
 
-function changeSymbol(symbol){
-  currentSymbol = symbol;
+function changeSymbol(s){
+  currentSymbol=s;
   loadData();
 }
 
 function changeTF(tf){
-  interval = tf;
+  interval=tf;
   loadData();
 }
 
 /* ================= 시작 ================= */
 
-window.onload = function(){
-
-  const btn = document.getElementById("futureBtn");
-
-  if(!isMobile){
-    btn.disabled = true;
-    btn.style.opacity = 0.4;
-    btn.innerText="모바일 전용";
-  }
-
+window.onload=()=>{
   loadData();
 };
