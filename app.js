@@ -119,13 +119,30 @@ function toggleMA(p){
 /* ================= 미래봉 ================= */
 
 function toggleDraw(){
-  if(!isMobile){
-    alert("모바일 전용 기능입니다.");
-    return;
-  }
-  drawing=!drawing;
-}
 
+  try {
+
+    drawing = !drawing;
+
+    const btn = document.getElementById("futureBtn");
+
+    if(!btn){
+      alert("futureBtn 못찾음");
+      return;
+    }
+
+    if(drawing){
+      btn.classList.add("active");
+      btn.innerText = "미래봉 ON";
+    } else {
+      btn.classList.remove("active");
+      btn.innerText = "미래봉 OFF";
+    }
+
+  } catch(e){
+    alert("toggleDraw 에러: " + e.message);
+  }
+}
 /* ================= 터치 로직 ================= */
 
 const chartEl=document.getElementById("chart");
@@ -203,3 +220,4 @@ function changeTF(tf){
 window.onload=()=>{
   loadData();
 };
+
