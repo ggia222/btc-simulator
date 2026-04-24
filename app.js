@@ -26,13 +26,28 @@ const candleSeries = chart.addCandlestickSeries();
 /* ===== 미래 캔들 (별도) ===== */
 
 const futureCandleSeries = chart.addCandlestickSeries({
-  upColor: "#26a69a",
-  downColor: "#ef5350",
-  borderVisible: false,
-  wickUpColor: "#26a69a",
-  wickDownColor: "#ef5350",
+  upColor: "rgba(38,166,154,0.5)",     // 반투명
+  downColor: "rgba(239,83,80,0.5)",
+
+  borderVisible: true,
+  borderUpColor: "#FFFFFF",            // 🔥 흰색 테두리
+  borderDownColor: "#FFFFFF",
+
+  wickUpColor: "#FFFFFF",
+  wickDownColor: "#FFFFFF",
 });
 
+function clearFuture() {
+
+  futurePoints = [];
+  futureCandles = [];
+
+  futureSeries.setData([]);
+  futureCandleSeries.setData([]);
+
+  updateAllMA();
+}
+<button onclick="clearFuture()">미래봉 삭제</button>
 /* ================= MA ================= */
 
 const maPeriods = [7, 15, 60, 100, 200];
