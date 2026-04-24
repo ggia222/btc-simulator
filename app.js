@@ -257,6 +257,12 @@ chartEl.addEventListener("pointermove", (e) => {
 });
 
 /* ================= 기타 ================= */
+<div id="chart-wrapper" style="position:relative;">
+  <div id="chart"></div>
+
+  <!-- 🔥 MA 범례 -->
+  <div id="maLegend"></div>
+</div>
 
 function getIntervalSeconds(tf) {
   if (tf.endsWith("m")) return parseInt(tf) * 60;
