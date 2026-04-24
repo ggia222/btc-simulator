@@ -47,7 +47,7 @@ function clearFuture() {
 
   updateAllMA();
 }
-<button onclick="clearFuture()">미래봉 삭제</button>
+
 /* ================= MA ================= */
 
 const maPeriods = [7, 15, 60, 100, 200];
