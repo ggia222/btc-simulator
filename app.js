@@ -38,11 +38,12 @@ let lastGeneratedIndex = 0;
 
 const PIXELS_PER_BAR = 12;
 
-/* ===== 핵심: 미래 경로 ===== */
+/* ===== 핵심 ===== */
 
-let futurePath = [];   // [{t:0~1, price}]
-let baseTime = null;   // 시작 시간
-let baseInterval = null; // 그릴 당시 TF
+let futurePath = [];        // [{t, price}]
+let futureTotalBars = 0;    // 🔥 핵심 변수
+let baseTime = null;
+let baseInterval = null;
 
 let futureCandles = [];
 
@@ -62,6 +63,8 @@ function toggleDraw() {
 
     futurePath = [];
     futureCandles = [];
+    futureTotalBars = 0;
+
     futureCandleSeries.setData([]);
   } else {
     btn.innerText = "미래봉 OFF";
@@ -72,6 +75,8 @@ function toggleDraw() {
 function clearFuture() {
   futurePath = [];
   futureCandles = [];
+  futureTotalBars = 0;
+
   futureCandleSeries.setData([]);
 }
 
@@ -114,6 +119,8 @@ chartEl.addEventListener("pointerdown", (e) => {
   baseInterval = interval;
 
   futurePath = [];
+  futureCandles = [];
+  futureTotalBars = 0;
   lastGeneratedIndex = 0;
 });
 
@@ -132,6 +139,8 @@ chartEl.addEventListener("pointermove", (e) => {
   const targetBars = Math.floor(dx / PIXELS_PER_BAR);
   if (targetBars <= 0) return;
 
+  futureTotalBars = targetBars; // 🔥 핵심
+
   while (lastGeneratedIndex < targetBars) {
 
     const tNorm = (lastGeneratedIndex + 1) / targetBars;
@@ -143,7 +152,7 @@ chartEl.addEventListener("pointermove", (e) => {
 
     futurePath.push({
       t: tNorm,
-      price: price
+      price: price,
     });
 
     lastGeneratedIndex++;
@@ -152,17 +161,17 @@ chartEl.addEventListener("pointermove", (e) => {
   rebuildFutureCandles();
 });
 
-/* ================= 핵심: 재구성 ================= */
+/* ================= 핵심 로직 ================= */
 
 function rebuildFutureCandles() {
 
-  if (!futurePath.length) return;
+  if (!futurePath.length || futureTotalBars === 0) return;
 
   const baseSec = getIntervalSeconds(baseInterval);
   const currentSec = getIntervalSeconds(interval);
 
-  const totalSeconds = baseSec * futurePath.length;
-  const newBars = Math.floor(totalSeconds / currentSec);
+  const totalSeconds = baseSec * futureTotalBars; // 🔥 핵심 수정
+  const newBars = Math.max(1, Math.floor(totalSeconds / currentSec));
 
   let newCandles = [];
   let nextTime = baseTime;
