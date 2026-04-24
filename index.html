@@ -43,8 +43,42 @@ button.active{
   font-weight:600;
 }
 
-#chart{
+/* 🔥 차트 영역 */
+#chart-wrapper{
+  position:relative;
+  width:100%;
   height:78vh;
+}
+
+/* 🔥 실제 차트 */
+#chart{
+  width:100%;
+  height:100%;
+}
+
+/* 🔥 MA 범례 */
+#maLegend {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 12px;
+  z-index: 999;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ma-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ccc;
+}
+
+.ma-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
 }
 </style>
 </head>
@@ -63,40 +97,34 @@ button.active{
 </select>
 
 <!-- Time Frame -->
-<button id="tf_1m" onclick="changeTF('1m')" class="active">1m</button>
-<button id="tf_5m" onclick="changeTF('5m')">5m</button>
-<button id="tf_15m" onclick="changeTF('15m')">15m</button>
-<button id="tf_1h" onclick="changeTF('1h')">1h</button>
-<button id="tf_4h" onclick="changeTF('4h')">4h</button>
-<button id="tf_1d" onclick="changeTF('1d')">1d</button>
+<button onclick="changeTF('1m')" class="active">1m</button>
+<button onclick="changeTF('5m')">5m</button>
+<button onclick="changeTF('15m')">15m</button>
+<button onclick="changeTF('1h')">1h</button>
+<button onclick="changeTF('4h')">4h</button>
+<button onclick="changeTF('1d')">1d</button>
 
 <!-- MA -->
-<button id="ma7Btn" onclick="toggleMA(7)">MA7</button>
-<button id="ma15Btn" onclick="toggleMA(15)">MA15</button>
-<button id="ma60Btn" onclick="toggleMA(60)">MA60</button>
-<button id="ma100Btn" onclick="toggleMA(100)">MA100</button>
-<button id="ma200Btn" onclick="toggleMA(200)">MA200</button>
+<button onclick="toggleMA(7)">MA7</button>
+<button onclick="toggleMA(15)">MA15</button>
+<button onclick="toggleMA(60)">MA60</button>
+<button onclick="toggleMA(100)">MA100</button>
+<button onclick="toggleMA(200)">MA200</button>
 
-<button id="futureBtn" onclick="alert('버튼 클릭됨'); toggleDraw()">미래봉 OFF</button>
+<button id="futureBtn" onclick="toggleDraw()">미래봉 OFF</button>
 <button onclick="clearFuture()">미래봉 삭제</button>
 
 <div id="futurePercent" class="percentBox"></div>
 
 </div>
 
-<div id="chart"></div>
-<div id="chart-wrapper" style="position:relative; width:100%; height:500px;">
-  <div id="chart" style="width:100%; height:100%;"></div>
+<!-- 🔥 핵심: wrapper 안에 chart + legend 같이 있어야 함 -->
+<div id="chart-wrapper">
+  <div id="chart"></div>
   <div id="maLegend"></div>
 </div>
 
-  <!-- 🔥 MA 범례 -->
-  <div id="maLegend"></div>
-</div>
 <script src="app.js"></script>
+
 </body>
 </html>
-
-
-
-
