@@ -3,86 +3,106 @@
 let currentSymbol = "BTCUSDT";
 let interval = "1m";
 
-const chart = LightweightCharts.createChart(
-  document.getElementById("chart"),
-  {
-    layout:{ background:{color:"#0B0E11"}, textColor:"#848E9C"},
-    grid:{ vertLines:{color:"#1E2329"}, horzLines:{color:"#1E2329"}},
-    rightPriceScale:{ borderColor:"#2B3139"},
-    timeScale:{ timeVisible:true }
-  }
-);
+const chartEl = document.getElementById("chart");
+
+const chart = LightweightCharts.createChart(chartEl, {
+  layout: { background: { color: "#0B0E11" }, textColor: "#848E9C" },
+  grid: { vertLines: { color: "#1E2329" }, horzLines: { color: "#1E2329" } },
+  rightPriceScale: { borderColor: "#2B3139" },
+  timeScale: { timeVisible: true },
+
+  handleScroll: {
+    mouseWheel: true,
+    pressedMouseMove: true,
+  },
+  handleScale: {
+    mouseWheel: true,
+    pinch: true,
+  },
+});
 
 const candleSeries = chart.addCandlestickSeries();
 
 /* ================= MA ================= */
 
-const maPeriods=[7,15,60,100,200];
-const maColors={7:"#FCD535",15:"#FF00FF",60:"#00C087",100:"#2962FF",200:"#FF4D4F"};
-const maSeries={};
-const maState={7:true,15:true,60:true,100:true,200:true};
+const maPeriods = [7, 15, 60, 100, 200];
+const maColors = {
+  7: "#FCD535",
+  15: "#FF00FF",
+  60: "#00C087",
+  100: "#2962FF",
+  200: "#FF4D4F",
+};
+const maSeries = {};
+const maState = { 7: true, 15: true, 60: true, 100: true, 200: true };
 
-maPeriods.forEach(p=>{
-  maSeries[p]=chart.addLineSeries({
-    color:maColors[p],
-    lineWidth:2,
-    priceLineVisible:false,
-    lastValueVisible:false
+maPeriods.forEach((p) => {
+  maSeries[p] = chart.addLineSeries({
+    color: maColors[p],
+    lineWidth: 2,
+    priceLineVisible: false,
+    lastValueVisible: false,
   });
 });
 
 /* ================= 미래봉 ================= */
 
-let futurePoints=[];
-let drawing=false;
-let nextFutureTime=null;
+let futurePoints = [];
+let drawing = false;
+let nextFutureTime = null;
 
-const futureSeries=chart.addLineSeries({
-  color:"#AAAAAA",
-  lineWidth:2,
-  lineStyle:LightweightCharts.LineStyle.Dotted,
-  priceLineVisible:false,
-  lastValueVisible:false
+const futureSeries = chart.addLineSeries({
+  color: "#AAAAAA",
+  lineWidth: 2,
+  lineStyle: LightweightCharts.LineStyle.Dotted,
+  priceLineVisible: false,
+  lastValueVisible: false,
 });
 
-function toggleDraw(){
+/* ===== 드래그 기반 변수 ===== */
 
-  drawing=!drawing;
+let isPointerDown = false;
+let startPoint = null;
+let lastGeneratedIndex = 0;
+const PIXELS_PER_BAR = 12;
 
-  const btn=document.getElementById("futureBtn");
+/* ===== 버튼 ===== */
 
-  if(drawing){
-    btn.innerText="미래봉 ON";
+function toggleDraw() {
+  drawing = !drawing;
+
+  const btn = document.getElementById("futureBtn");
+
+  if (drawing) {
+    btn.innerText = "미래봉 ON";
     btn.classList.add("active");
 
-    nextFutureTime=dataCache[dataCache.length-1].time;
-    futurePoints=[];
+    nextFutureTime = dataCache[dataCache.length - 1].time;
+    futurePoints = [];
     futureSeries.setData([]);
-
-  }else{
-    btn.innerText="미래봉 OFF";
+  } else {
+    btn.innerText = "미래봉 OFF";
     btn.classList.remove("active");
   }
 }
 
 /* ================= 데이터 ================= */
 
-let dataCache=[];
+let dataCache = [];
 
-async function loadData(){
-
-  const res=await fetch(
+async function loadData() {
+  const res = await fetch(
     `https://fapi.binance.com/fapi/v1/klines?symbol=${currentSymbol}&interval=${interval}&limit=500`
   );
 
-  const raw=await res.json();
+  const raw = await res.json();
 
-  dataCache=raw.map(d=>({
-    time:d[0]/1000,
-    open:+d[1],
-    high:+d[2],
-    low:+d[3],
-    close:+d[4]
+  dataCache = raw.map((d) => ({
+    time: d[0] / 1000,
+    open: +d[1],
+    high: +d[2],
+    low: +d[3],
+    close: +d[4],
   }));
 
   candleSeries.setData(dataCache);
@@ -90,108 +110,150 @@ async function loadData(){
   chart.timeScale().fitContent();
 }
 
-/* ================= MA 계산 ================= */
+/* ================= EMA ================= */
 
-function calcMA(data,period){
-  let result=[];
-  let sum=0;
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  let ema = [];
+  let prev;
 
-  for(let i=0;i<data.length;i++){
-    sum+=data[i].close;
-    if(i>=period) sum-=data[i-period].close;
-
-    if(i>=period-1){
-      result.push({time:data[i].time,value:sum/period});
+  data.forEach((d, i) => {
+    if (i === 0) {
+      prev = d.close;
+    } else {
+      prev = d.close * k + prev * (1 - k);
     }
-  }
-  return result;
+    ema.push({ time: d.time, value: prev });
+  });
+
+  return ema;
 }
 
-function updateAllMA(){
+/* ================= MA 업데이트 ================= */
 
-  const combined=[...dataCache];
+function updateAllMA() {
+  const combined = [...dataCache];
 
-  futurePoints.forEach(p=>{
+  futurePoints.forEach((p) => {
     combined.push({
-      time:p.time,
-      open:p.value,
-      high:p.value,
-      low:p.value,
-      close:p.value
+      time: p.time,
+      open: p.value,
+      high: p.value,
+      low: p.value,
+      close: p.value,
     });
   });
 
-  maPeriods.forEach(p=>{
-    if(maState[p]){
-      maSeries[p].setData(calcMA(combined,p));
-    }else{
+  maPeriods.forEach((p) => {
+    if (maState[p]) {
+      maSeries[p].setData(calcEMA(combined, p));
+    } else {
       maSeries[p].setData([]);
     }
   });
 }
 
-function toggleMA(p){
-  maState[p]=!maState[p];
+function toggleMA(p) {
+  maState[p] = !maState[p];
   updateAllMA();
 }
 
-/* ================= 터치 미래봉 ================= */
+/* ================= PC + 모바일 드래그 ================= */
 
-const chartEl=document.getElementById("chart");
+chartEl.addEventListener("pointerdown", (e) => {
+  if (!drawing) return;
 
-chartEl.addEventListener("touchmove",function(e){
+  isPointerDown = true;
 
-  if(!drawing) return;
-  if(!dataCache.length) return;
+  const rect = chartEl.getBoundingClientRect();
 
-  e.preventDefault();
+  startPoint = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
+  };
 
-  const rect=chartEl.getBoundingClientRect();
-  const y=e.touches[0].clientY-rect.top;
+  nextFutureTime = dataCache[dataCache.length - 1].time;
+  futurePoints = [];
+  lastGeneratedIndex = 0;
+  futureSeries.setData([]);
+});
 
-  const price=candleSeries.coordinateToPrice(y);
-  if(price==null) return;
+chartEl.addEventListener("pointerup", () => {
+  isPointerDown = false;
+});
 
-  const intervalSec=getIntervalSeconds(interval);
+chartEl.addEventListener("pointerleave", () => {
+  isPointerDown = false;
+});
 
-  const newTime=nextFutureTime+intervalSec;
+chartEl.addEventListener("pointermove", function (e) {
+  if (!drawing || !isPointerDown || !dataCache.length || !startPoint) return;
 
-  if(futurePoints.length>0 &&
-     futurePoints[futurePoints.length-1].time===newTime){
-       return;
+  const rect = chartEl.getBoundingClientRect();
+
+  const currentX = e.clientX - rect.left;
+  const currentY = e.clientY - rect.top;
+
+  const dx = currentX - startPoint.x;
+  const dy = currentY - startPoint.y;
+
+  const targetBars = Math.floor(dx / PIXELS_PER_BAR);
+  if (targetBars <= 0) return;
+
+  const intervalSec = getIntervalSeconds(interval);
+
+  while (lastGeneratedIndex < targetBars) {
+    const newTime = nextFutureTime + intervalSec;
+
+    const t = (lastGeneratedIndex + 1) / targetBars;
+    const interpY = startPoint.y + dy * t;
+
+    const price = candleSeries.coordinateToPrice(interpY);
+    if (price == null) return;
+
+    futurePoints.push({
+      time: newTime,
+      value: price,
+    });
+
+    nextFutureTime = newTime;
+    lastGeneratedIndex++;
   }
-
-  futurePoints.push({
-    time:newTime,
-    value:price
-  });
-
-  nextFutureTime=newTime;
 
   futureSeries.setData(futurePoints);
   updateAllMA();
-
-},{passive:false});
+});
 
 /* ================= 기타 ================= */
 
-function getIntervalSeconds(tf){
-  if(tf.endsWith("m")) return parseInt(tf)*60;
-  if(tf.endsWith("h")) return parseInt(tf)*3600;
-  if(tf.endsWith("d")) return parseInt(tf)*86400;
+function getIntervalSeconds(tf) {
+  if (tf.endsWith("m")) return parseInt(tf) * 60;
+  if (tf.endsWith("h")) return parseInt(tf) * 3600;
+  if (tf.endsWith("d")) return parseInt(tf) * 86400;
   return 60;
 }
 
-function changeSymbol(s){
-  currentSymbol=s;
+function changeSymbol(s) {
+  currentSymbol = s;
   loadData();
 }
 
-function changeTF(tf){
-  interval=tf;
+function changeTF(tf) {
+  interval = tf;
   loadData();
 }
 
-window.onload=()=>{
+/* ===== 리사이즈 대응 ===== */
+
+function resizeChart() {
+  chart.resize(chartEl.clientWidth, chartEl.clientHeight);
+}
+
+window.addEventListener("resize", resizeChart);
+
+/* ================= 시작 ================= */
+
+window.onload = () => {
+  resizeChart();
   loadData();
 };
