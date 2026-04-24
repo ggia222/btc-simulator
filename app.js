@@ -30,11 +30,11 @@ const futureCandleSeries = chart.addCandlestickSeries({
   downColor: "rgba(239,83,80,0.5)",
 
   borderVisible: true,
-  borderUpColor: "#FFFFFF",            // 🔥 흰색 테두리
-  borderDownColor: "#FFFFFF",
+  borderUpColor: "#FFD700",            // 🔥 흰색 테두리
+  borderDownColor: "#FFD700",
 
-  wickUpColor: "#FFFFFF",
-  wickDownColor: "#FFFFFF",
+  wickUpColor: "#FFD700",
+  wickDownColor: "#FFD700",
 });
 
 function clearFuture() {
