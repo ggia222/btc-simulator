@@ -23,6 +23,16 @@ const chart = LightweightCharts.createChart(chartEl, {
 
 const candleSeries = chart.addCandlestickSeries();
 
+/* ===== 미래 캔들 (별도) ===== */
+
+const futureCandleSeries = chart.addCandlestickSeries({
+  upColor: "#26a69a",
+  downColor: "#ef5350",
+  borderVisible: false,
+  wickUpColor: "#26a69a",
+  wickDownColor: "#ef5350",
+});
+
 /* ================= MA ================= */
 
 const maPeriods = [7, 15, 60, 100, 200];
@@ -33,6 +43,7 @@ const maColors = {
   100: "#2962FF",
   200: "#FF4D4F",
 };
+
 const maSeries = {};
 const maState = { 7: true, 15: true, 60: true, 100: true, 200: true };
 
@@ -48,6 +59,7 @@ maPeriods.forEach((p) => {
 /* ================= 미래봉 ================= */
 
 let futurePoints = [];
+let futureCandles = [];
 let drawing = false;
 let nextFutureTime = null;
 
@@ -59,14 +71,14 @@ const futureSeries = chart.addLineSeries({
   lastValueVisible: false,
 });
 
-/* ===== 드래그 기반 변수 ===== */
+/* ===== 드래그 변수 ===== */
 
 let isPointerDown = false;
 let startPoint = null;
 let lastGeneratedIndex = 0;
 const PIXELS_PER_BAR = 12;
 
-/* ===== 버튼 ===== */
+/* ================= 버튼 ================= */
 
 function toggleDraw() {
   drawing = !drawing;
@@ -78,8 +90,11 @@ function toggleDraw() {
     btn.classList.add("active");
 
     nextFutureTime = dataCache[dataCache.length - 1].time;
+
     futurePoints = [];
+    futureCandles = [];
     futureSeries.setData([]);
+    futureCandleSeries.setData([]);
   } else {
     btn.innerText = "미래봉 OFF";
     btn.classList.remove("active");
@@ -129,20 +144,12 @@ function calcEMA(data, period) {
   return ema;
 }
 
-/* ================= MA 업데이트 ================= */
+/* ================= MA ================= */
 
 function updateAllMA() {
   const combined = [...dataCache];
 
-  futurePoints.forEach((p) => {
-    combined.push({
-      time: p.time,
-      open: p.value,
-      high: p.value,
-      low: p.value,
-      close: p.value,
-    });
-  });
+  futureCandles.forEach((c) => combined.push(c));
 
   maPeriods.forEach((p) => {
     if (maState[p]) {
@@ -153,12 +160,23 @@ function updateAllMA() {
   });
 }
 
-function toggleMA(p) {
-  maState[p] = !maState[p];
-  updateAllMA();
+/* ================= 미래 캔들 생성 ================= */
+
+function createFutureCandle(prevClose, price, time) {
+  const open = prevClose;
+  const close = price;
+
+  const high = Math.max(open, close);
+  const low = Math.min(open, close);
+
+  return { time, open, high, low, close };
 }
 
-/* ================= PC + 모바일 드래그 ================= */
+function updateFutureCandles() {
+  futureCandleSeries.setData(futureCandles);
+}
+
+/* ================= 드래그 ================= */
 
 chartEl.addEventListener("pointerdown", (e) => {
   if (!drawing) return;
@@ -173,9 +191,13 @@ chartEl.addEventListener("pointerdown", (e) => {
   };
 
   nextFutureTime = dataCache[dataCache.length - 1].time;
+
   futurePoints = [];
+  futureCandles = [];
   lastGeneratedIndex = 0;
+
   futureSeries.setData([]);
+  futureCandleSeries.setData([]);
 });
 
 chartEl.addEventListener("pointerup", () => {
@@ -186,7 +208,7 @@ chartEl.addEventListener("pointerleave", () => {
   isPointerDown = false;
 });
 
-chartEl.addEventListener("pointermove", function (e) {
+chartEl.addEventListener("pointermove", (e) => {
   if (!drawing || !isPointerDown || !dataCache.length || !startPoint) return;
 
   const rect = chartEl.getBoundingClientRect();
@@ -211,16 +233,22 @@ chartEl.addEventListener("pointermove", function (e) {
     const price = candleSeries.coordinateToPrice(interpY);
     if (price == null) return;
 
-    futurePoints.push({
-      time: newTime,
-      value: price,
-    });
+    const prevClose =
+      futureCandles.length > 0
+        ? futureCandles[futureCandles.length - 1].close
+        : dataCache[dataCache.length - 1].close;
+
+    const candle = createFutureCandle(prevClose, price, newTime);
+
+    futureCandles.push(candle);
+    futurePoints.push({ time: newTime, value: price });
 
     nextFutureTime = newTime;
     lastGeneratedIndex++;
   }
 
   futureSeries.setData(futurePoints);
+  updateFutureCandles();
   updateAllMA();
 });
 
@@ -243,7 +271,7 @@ function changeTF(tf) {
   loadData();
 }
 
-/* ===== 리사이즈 대응 ===== */
+/* ===== 리사이즈 ===== */
 
 function resizeChart() {
   chart.resize(chartEl.clientWidth, chartEl.clientHeight);
