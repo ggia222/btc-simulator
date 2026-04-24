@@ -320,4 +320,5 @@ window.addEventListener("resize", resizeChart);
 window.onload = () => {
   resizeChart();
   loadData();
+  createMALegend(); // 🔥 추가
 };
