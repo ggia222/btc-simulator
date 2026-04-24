@@ -3,7 +3,15 @@
 let currentSymbol = "BTCUSDT";
 let interval = "1m";
 
-const chartEl = document.getElementById("chart");
+let chartEl;
+
+window.onload = () => {
+  chartEl = document.getElementById("chart");
+
+  resizeChart();
+  loadData();
+  createMALegend();
+};
 
 const chart = LightweightCharts.createChart(chartEl, {
   layout: { background: { color: "#0B0E11" }, textColor: "#848E9C" },
