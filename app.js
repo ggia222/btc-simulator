@@ -196,13 +196,26 @@ async function loadData() {
 
 /* ================= EMA ================= */
 
-function calcEMA(data, period) {
-  const k = 2 / (period + 1);
-  let prev;
-  return data.map((d, i) => {
-    prev = i === 0 ? d.close : d.close * k + prev * (1 - k);
-    return { time: d.time, value: prev };
-  });
+function calcMA(data, period) {
+  let result = [];
+  let sum = 0;
+
+  for (let i = 0; i < data.length; i++) {
+    sum += data[i].close;
+
+    if (i >= period) {
+      sum -= data[i - period].close;
+    }
+
+    if (i >= period - 1) {
+      result.push({
+        time: data[i].time,
+        value: sum / period,
+      });
+    }
+  }
+
+  return result;
 }
 
 /* ================= MA ================= */
@@ -211,7 +224,7 @@ function updateAllMA() {
   const combined = [...dataCache, ...futureCandles];
 
   maPeriods.forEach((p) => {
-    maSeries[p].setData(maState[p] ? calcEMA(combined, p) : []);
+    maSeries[p].setData(maState[p] ? calcMA(combined, p) : []);
   });
 }
 
