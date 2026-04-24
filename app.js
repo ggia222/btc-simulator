@@ -258,6 +258,37 @@ chartEl.addEventListener("pointermove", (e) => {
 
 /* ================= 기타 ================= */
 
+function createMALegend() {
+
+  const legend = document.getElementById("maLegend");
+  legend.innerHTML = "";
+
+  maPeriods.forEach(p => {
+
+    const item = document.createElement("div");
+    item.className = "ma-item";
+
+    const colorBox = document.createElement("div");
+    colorBox.className = "ma-color";
+    colorBox.style.background = maColors[p];
+
+    const label = document.createElement("span");
+    label.innerText = `MA ${p}`;
+
+    item.appendChild(colorBox);
+    item.appendChild(label);
+
+    // 👉 클릭으로 ON/OFF
+    item.style.cursor = "pointer";
+    item.onclick = () => {
+      maState[p] = !maState[p];
+      updateAllMA();
+      item.style.opacity = maState[p] ? "1" : "0.3";
+    };
+
+    legend.appendChild(item);
+  });
+}
 
 function getIntervalSeconds(tf) {
   if (tf.endsWith("m")) return parseInt(tf) * 60;
