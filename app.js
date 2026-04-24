@@ -3,47 +3,11 @@
 let currentSymbol = "BTCUSDT";
 let interval = "1m";
 
+let chart;
 let chartEl;
-
-window.onload = () => {
-  chartEl = document.getElementById("chart");
-
-  resizeChart();
-  loadData();
-  createMALegend();
-};
-
-const chart = LightweightCharts.createChart(chartEl, {
-  layout: { background: { color: "#0B0E11" }, textColor: "#848E9C" },
-  grid: { vertLines: { color: "#1E2329" }, horzLines: { color: "#1E2329" } },
-  rightPriceScale: { borderColor: "#2B3139" },
-  timeScale: { timeVisible: true },
-
-  handleScroll: {
-    mouseWheel: true,
-    pressedMouseMove: true,
-  },
-  handleScale: {
-    mouseWheel: true,
-    pinch: true,
-  },
-});
-
-const candleSeries = chart.addCandlestickSeries();
-
-/* ===== 미래 캔들 (별도) ===== */
-
-const futureCandleSeries = chart.addCandlestickSeries({
-  upColor: "rgba(38,166,154,0.5)",     // 반투명
-  downColor: "rgba(239,83,80,0.5)",
-
-  borderVisible: true,
-  borderUpColor: "#FFD700",            // 🔥 흰색 테두리
-  borderDownColor: "#FFD700",
-
-  wickUpColor: "#FFD700",
-  wickDownColor: "#FFD700",
-});
+let candleSeries;
+let futureCandleSeries;
+let futureSeries;
 
 /* ================= MA ================= */
 
@@ -59,63 +23,156 @@ const maColors = {
 const maSeries = {};
 const maState = { 7: true, 15: true, 60: true, 100: true, 200: true };
 
-maPeriods.forEach((p) => {
-  maSeries[p] = chart.addLineSeries({
-    color: maColors[p],
-    lineWidth: 2,
-    priceLineVisible: false,
-    lastValueVisible: false,
-  });
-});
+/* ================= 상태 ================= */
 
-/* ================= 미래봉 ================= */
+let dataCache = [];
 
 let futurePoints = [];
 let futureCandles = [];
+
 let drawing = false;
 let nextFutureTime = null;
 
-const futureSeries = chart.addLineSeries({
-  color: "#AAAAAA",
-  lineWidth: 2,
-  lineStyle: LightweightCharts.LineStyle.Dotted,
-  priceLineVisible: false,
-  lastValueVisible: false,
-});
-
-/* ===== 드래그 변수 ===== */
+/* ===== 드래그 ===== */
 
 let isPointerDown = false;
 let startPoint = null;
 let lastGeneratedIndex = 0;
 const PIXELS_PER_BAR = 12;
 
-/* ================= 버튼 ================= */
+/* ================= INIT ================= */
 
-function toggleDraw() {
-  drawing = !drawing;
+function init() {
 
-  const btn = document.getElementById("futureBtn");
+  chartEl = document.getElementById("chart");
 
-  if (drawing) {
-    btn.innerText = "미래봉 ON";
-    btn.classList.add("active");
+  chart = LightweightCharts.createChart(chartEl, {
+    layout: { background: { color: "#0B0E11" }, textColor: "#848E9C" },
+    grid: { vertLines: { color: "#1E2329" }, horzLines: { color: "#1E2329" } },
+    rightPriceScale: { borderColor: "#2B3139" },
+    timeScale: { timeVisible: true },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true },
+    handleScale: { mouseWheel: true, pinch: true },
+  });
+
+  candleSeries = chart.addCandlestickSeries();
+
+  futureCandleSeries = chart.addCandlestickSeries({
+    upColor: "rgba(38,166,154,0.5)",
+    downColor: "rgba(239,83,80,0.5)",
+    borderVisible: true,
+    borderUpColor: "#FFD700",
+    borderDownColor: "#FFD700",
+    wickUpColor: "#FFD700",
+    wickDownColor: "#FFD700",
+  });
+
+  futureSeries = chart.addLineSeries({
+    color: "#AAAAAA",
+    lineWidth: 2,
+    lineStyle: LightweightCharts.LineStyle.Dotted,
+  });
+
+  // MA 생성
+  maPeriods.forEach((p) => {
+    maSeries[p] = chart.addLineSeries({
+      color: maColors[p],
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+  });
+
+  bindEvents();
+  resizeChart();
+  loadData();
+  createMALegend();
+}
+
+/* ================= 이벤트 ================= */
+
+function bindEvents() {
+
+  chartEl.addEventListener("pointerdown", (e) => {
+    if (!drawing) return;
+
+    isPointerDown = true;
+
+    const rect = chartEl.getBoundingClientRect();
+
+    startPoint = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
 
     nextFutureTime = dataCache[dataCache.length - 1].time;
 
     futurePoints = [];
     futureCandles = [];
+    lastGeneratedIndex = 0;
+
     futureSeries.setData([]);
     futureCandleSeries.setData([]);
-  } else {
-    btn.innerText = "미래봉 OFF";
-    btn.classList.remove("active");
-  }
+  });
+
+  chartEl.addEventListener("pointerup", () => {
+    isPointerDown = false;
+  });
+
+  chartEl.addEventListener("pointerleave", () => {
+    isPointerDown = false;
+  });
+
+  chartEl.addEventListener("pointermove", (e) => {
+    if (!drawing || !isPointerDown || !dataCache.length || !startPoint) return;
+
+    const rect = chartEl.getBoundingClientRect();
+
+    const dx = (e.clientX - rect.left) - startPoint.x;
+    const dy = (e.clientY - rect.top) - startPoint.y;
+
+    const targetBars = Math.floor(dx / PIXELS_PER_BAR);
+    if (targetBars <= 0) return;
+
+    const intervalSec = getIntervalSeconds(interval);
+
+    while (lastGeneratedIndex < targetBars) {
+
+      const newTime = nextFutureTime + intervalSec;
+
+      const t = (lastGeneratedIndex + 1) / targetBars;
+      const interpY = startPoint.y + dy * t;
+
+      const price = candleSeries.coordinateToPrice(interpY);
+      if (price == null) return;
+
+      const prevClose =
+        futureCandles.length > 0
+          ? futureCandles[futureCandles.length - 1].close
+          : dataCache[dataCache.length - 1].close;
+
+      const candle = {
+        time: newTime,
+        open: prevClose,
+        high: Math.max(prevClose, price),
+        low: Math.min(prevClose, price),
+        close: price,
+      };
+
+      futureCandles.push(candle);
+      futurePoints.push({ time: newTime, value: price });
+
+      nextFutureTime = newTime;
+      lastGeneratedIndex++;
+    }
+
+    futureSeries.setData(futurePoints);
+    futureCandleSeries.setData(futureCandles);
+    updateAllMA();
+  });
 }
 
 /* ================= 데이터 ================= */
-
-let dataCache = [];
 
 async function loadData() {
   const res = await fetch(
@@ -141,138 +198,54 @@ async function loadData() {
 
 function calcEMA(data, period) {
   const k = 2 / (period + 1);
-  let ema = [];
   let prev;
-
-  data.forEach((d, i) => {
-    if (i === 0) {
-      prev = d.close;
-    } else {
-      prev = d.close * k + prev * (1 - k);
-    }
-    ema.push({ time: d.time, value: prev });
+  return data.map((d, i) => {
+    prev = i === 0 ? d.close : d.close * k + prev * (1 - k);
+    return { time: d.time, value: prev };
   });
-
-  return ema;
 }
 
 /* ================= MA ================= */
 
 function updateAllMA() {
-  const combined = [...dataCache];
-
-  futureCandles.forEach((c) => combined.push(c));
+  const combined = [...dataCache, ...futureCandles];
 
   maPeriods.forEach((p) => {
-    if (maState[p]) {
-      maSeries[p].setData(calcEMA(combined, p));
-    } else {
-      maSeries[p].setData([]);
-    }
+    maSeries[p].setData(maState[p] ? calcEMA(combined, p) : []);
   });
 }
 
-/* ================= 미래 캔들 생성 ================= */
+/* ================= 버튼 ================= */
 
-function createFutureCandle(prevClose, price, time) {
-  const open = prevClose;
-  const close = price;
+function toggleDraw() {
+  drawing = !drawing;
 
-  const high = Math.max(open, close);
-  const low = Math.min(open, close);
+  const btn = document.getElementById("futureBtn");
 
-  return { time, open, high, low, close };
+  if (drawing) {
+    btn.innerText = "미래봉 ON";
+    btn.classList.add("active");
+  } else {
+    btn.innerText = "미래봉 OFF";
+    btn.classList.remove("active");
+  }
 }
 
-function updateFutureCandles() {
-  futureCandleSeries.setData(futureCandles);
-}
-
-/* ================= 드래그 ================= */
-
-chartEl.addEventListener("pointerdown", (e) => {
-  if (!drawing) return;
-
-  isPointerDown = true;
-
-  const rect = chartEl.getBoundingClientRect();
-
-  startPoint = {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top,
-  };
-
-  nextFutureTime = dataCache[dataCache.length - 1].time;
-
+function clearFuture() {
   futurePoints = [];
   futureCandles = [];
-  lastGeneratedIndex = 0;
-
   futureSeries.setData([]);
   futureCandleSeries.setData([]);
-});
-
-chartEl.addEventListener("pointerup", () => {
-  isPointerDown = false;
-});
-
-chartEl.addEventListener("pointerleave", () => {
-  isPointerDown = false;
-});
-
-chartEl.addEventListener("pointermove", (e) => {
-  if (!drawing || !isPointerDown || !dataCache.length || !startPoint) return;
-
-  const rect = chartEl.getBoundingClientRect();
-
-  const currentX = e.clientX - rect.left;
-  const currentY = e.clientY - rect.top;
-
-  const dx = currentX - startPoint.x;
-  const dy = currentY - startPoint.y;
-
-  const targetBars = Math.floor(dx / PIXELS_PER_BAR);
-  if (targetBars <= 0) return;
-
-  const intervalSec = getIntervalSeconds(interval);
-
-  while (lastGeneratedIndex < targetBars) {
-    const newTime = nextFutureTime + intervalSec;
-
-    const t = (lastGeneratedIndex + 1) / targetBars;
-    const interpY = startPoint.y + dy * t;
-
-    const price = candleSeries.coordinateToPrice(interpY);
-    if (price == null) return;
-
-    const prevClose =
-      futureCandles.length > 0
-        ? futureCandles[futureCandles.length - 1].close
-        : dataCache[dataCache.length - 1].close;
-
-    const candle = createFutureCandle(prevClose, price, newTime);
-
-    futureCandles.push(candle);
-    futurePoints.push({ time: newTime, value: price });
-
-    nextFutureTime = newTime;
-    lastGeneratedIndex++;
-  }
-
-  futureSeries.setData(futurePoints);
-  updateFutureCandles();
   updateAllMA();
-});
+}
 
 /* ================= 기타 ================= */
 
 function createMALegend() {
-
   const legend = document.getElementById("maLegend");
   legend.innerHTML = "";
 
   maPeriods.forEach(p => {
-
     const item = document.createElement("div");
     item.className = "ma-item";
 
@@ -286,8 +259,6 @@ function createMALegend() {
     item.appendChild(colorBox);
     item.appendChild(label);
 
-    // 👉 클릭으로 ON/OFF
-    item.style.cursor = "pointer";
     item.onclick = () => {
       maState[p] = !maState[p];
       updateAllMA();
@@ -315,9 +286,8 @@ function changeTF(tf) {
   loadData();
 }
 
-/* ===== 리사이즈 ===== */
-
 function resizeChart() {
+  if (!chartEl || !chart) return;
   chart.resize(chartEl.clientWidth, chartEl.clientHeight);
 }
 
@@ -325,8 +295,4 @@ window.addEventListener("resize", resizeChart);
 
 /* ================= 시작 ================= */
 
-window.onload = () => {
-  resizeChart();
-  loadData();
-  createMALegend(); // 🔥 추가
-};
+window.addEventListener("DOMContentLoaded", init);
